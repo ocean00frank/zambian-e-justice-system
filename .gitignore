@@ -1,0 +1,30 @@
+# Python environments and generated files
+venv/
+backend/venv_backend/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# Local databases and runtime files
+*.sqlite3
+*.db
+*.log
+
+# Node.js and Next.js output
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
