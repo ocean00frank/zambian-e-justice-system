@@ -1,49 +1,81 @@
-import Link from "next/link";
-import { RolePortalHeader } from "@/components/role-portal-header";
+"use client";
 
-export default async function FilingReceiptPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { ApiFilingReceipt, apiRequest, formatDate, getSessionToken } from "@/components/api";
+import { LawyerPageShell } from "@/components/lawyer-page-shell";
+
+export default function FilingReceiptPage() {
+  const params = useParams<{ id: string }>();
+  const receiptNumber = decodeURIComponent(params.id);
+  const [receipt, setReceipt] = useState<ApiFilingReceipt | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadReceipt = async () => {
+      const token = getSessionToken();
+      if (!token) {
+        setError("Sign in to view this filing receipt.");
+        setLoading(false);
+        return;
+      }
+      try {
+        const result = await apiRequest<ApiFilingReceipt>(
+          `filings/receipts/${encodeURIComponent(receiptNumber)}/`,
+          { signal: controller.signal },
+          token,
+        );
+        setReceipt(result);
+      } catch (loadError) {
+        if (!controller.signal.aborted) setError(loadError instanceof Error ? loadError.message : "Could not load receipt.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+    void loadReceipt();
+    return () => controller.abort();
+  }, [receiptNumber]);
 
   return (
-    <>
-      <RolePortalHeader />
-      <div className="min-h-screen bg-[#f8f8f4] p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-4xl border border-[#173b30]/10 bg-white p-7 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Filing receipt</p>
-            <h1 className="mt-2 text-3xl font-semibold text-slate-900">E-Filing Receipt</h1>
+    <LawyerPageShell title="Filing receipt">
+      <div className="bg-[#f8f8f4]">
+        <section className="mx-auto max-w-4xl border border-[#173b30]/10 bg-white p-7 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Filing receipt</p>
+              <h1 className="mt-2 text-3xl font-semibold text-slate-900">Submission receipt</h1>
+            </div>
+            {receipt && <span className="w-fit rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">Submitted</span>}
           </div>
-          <div className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">Submission confirmed</div>
-        </div>
 
-        <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">Receipt number</p><p className="mt-2 text-lg font-semibold text-slate-900">{id}</p></div>
-            <div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">Case ID</p><p className="mt-2 text-lg font-semibold text-slate-900">HC/123/2026</p></div>
-            <div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">Date and time submitted</p><p className="mt-2 text-lg font-semibold text-slate-900">08 Oct 2026 • 14:35</p></div>
-            <div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">Court</p><p className="mt-2 text-lg font-semibold text-slate-900">High Court</p></div>
-            <div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">Document type</p><p className="mt-2 text-lg font-semibold text-slate-900">Statement of Claim</p></div>
-            <div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">Submitted by</p><p className="mt-2 text-lg font-semibold text-slate-900">M. Banda</p></div>
-            <div className="md:col-span-2"><p className="text-xs uppercase tracking-[0.18em] text-slate-500">Submission status</p><p className="mt-2 text-lg font-semibold text-slate-900">Submitted and registered in system</p></div>
-          </div>
-        </div>
+          {loading && <p className="mt-8 text-sm text-slate-600">Loading receipt…</p>}
+          {error && <p role="alert" className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">{error}</p>}
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          <button className="rounded-full bg-[#1b4d3e] px-5 py-3 text-sm font-semibold text-white">View receipt</button>
-          <button className="rounded-full border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700">Download receipt</button>
-          <button className="rounded-full border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700">Print receipt</button>
-        </div>
-
-        <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-          This receipt provides evidence of electronic submission and is stored in the case record for audit purposes.
-        </div>
-
-        <div className="mt-8 flex justify-start">
-          <Link href="/e-filing" className="text-sm font-semibold text-emerald-700">File another case</Link>
-        </div>
+          {receipt && (
+            <>
+              <dl className="mt-8 grid gap-5 rounded-xl border border-slate-200 bg-slate-50 p-6 sm:grid-cols-2">
+                <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Receipt number</dt><dd className="mt-2 break-all font-semibold text-slate-900">{receipt.receipt_number}</dd></div>
+                <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Case number</dt><dd className="mt-2 font-semibold text-slate-900">{receipt.case_number}</dd></div>
+                <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Submitted</dt><dd className="mt-2 font-semibold text-slate-900">{new Intl.DateTimeFormat("en-ZM", { dateStyle: "medium", timeStyle: "short" }).format(new Date(receipt.submitted_at))}</dd></div>
+                <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Court</dt><dd className="mt-2 font-semibold text-slate-900">{receipt.court}</dd></div>
+                <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Document type</dt><dd className="mt-2 font-semibold text-slate-900">{receipt.document_type ?? "—"}</dd></div>
+                <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Date</dt><dd className="mt-2 font-semibold text-slate-900">{formatDate(receipt.submitted_at)}</dd></div>
+              </dl>
+              <p className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                This receipt confirms electronic submission. Keep the receipt number for your records.
+              </p>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <button type="button" onClick={() => window.print()} className="min-h-11 rounded-lg bg-[#173b30] px-5 text-sm font-semibold text-white">Print receipt</button>
+                <Link href={`/cases/${receipt.case_id}`} className="inline-flex min-h-11 items-center rounded-lg border border-slate-200 px-5 text-sm font-semibold text-slate-700">View case</Link>
+                <Link href="/e-filing" className="inline-flex min-h-11 items-center rounded-lg border border-slate-200 px-5 text-sm font-semibold text-slate-700">File another case</Link>
+              </div>
+            </>
+          )}
+        </section>
       </div>
-      </div>
-    </>
+    </LawyerPageShell>
   );
 }

@@ -6,7 +6,7 @@ import { formatDate, roleLabelByRole } from "@/components/api";
 import { useRoleDashboard } from "@/components/use-role-dashboard";
 
 export default function JudgeDashboardPage() {
-  const { data, error, loading, retry } = useRoleDashboard("judicial_officer");
+  const { data, error, loading, retry } = useRoleDashboard("judge");
   const metrics = [
     { label: "Assigned cases", value: data?.summary.active_cases },
     { label: "Upcoming hearings", value: data?.summary.upcoming_hearings },
@@ -18,7 +18,7 @@ export default function JudgeDashboardPage() {
     <DashboardShell
       title="Judge dashboard"
       subtitle="Assigned matters and hearings"
-      role={roleLabelByRole.judicial_officer}
+      role={roleLabelByRole.judge}
       userName={userName}
       navItems={[
         { label: "Dashboard", href: "/dashboards/judge", active: true },

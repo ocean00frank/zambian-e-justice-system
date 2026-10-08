@@ -6,7 +6,7 @@ import { formatDate, roleLabelByRole } from "@/components/api";
 import { useRoleDashboard } from "@/components/use-role-dashboard";
 
 export default function RegistryDashboardPage() {
-  const { data, error, loading, retry } = useRoleDashboard("court_registry");
+  const { data, error, loading, retry } = useRoleDashboard("registry");
   const metrics = [
     { label: "Incoming filings", value: data?.summary.incoming_filings },
     { label: "Active case records", value: data?.summary.active_cases },
@@ -20,7 +20,7 @@ export default function RegistryDashboardPage() {
     <DashboardShell
       title="Registry dashboard"
       subtitle="Filings, records, and scheduling"
-      role={roleLabelByRole.court_registry}
+      role={roleLabelByRole.registry}
       userName={userName}
       navItems={[
         { label: "Dashboard", href: "/dashboards/registry", active: true },

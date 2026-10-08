@@ -9,8 +9,8 @@ class IsJudicialOrRegistry(BasePermission):
             request.user.is_superuser
             or request.user.role
             in {
-                User.Role.JUDICIAL_OFFICER,
-                User.Role.COURT_REGISTRY,
+                User.Role.JUDGE,
+                User.Role.REGISTRY,
             }
         )
 
@@ -18,5 +18,5 @@ class IsJudicialOrRegistry(BasePermission):
 class IsRegistry(BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and (
-            request.user.is_superuser or request.user.role == User.Role.COURT_REGISTRY
+            request.user.is_superuser or request.user.role == User.Role.REGISTRY
         )

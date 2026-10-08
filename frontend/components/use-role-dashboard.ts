@@ -30,7 +30,7 @@ export function useRoleDashboard(requiredRole: UserRole) {
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
 
-  const load = useCallback(async (signal: AbortSignal) => {
+  const load = useCallback(async (signal: AbortSignal, quiet = false) => {
     const token = getSessionToken();
     if (!token) {
       setError("Please sign in to continue.");
@@ -38,6 +38,7 @@ export function useRoleDashboard(requiredRole: UserRole) {
       return;
     }
 
+    if (!quiet) setLoading(true);
     try {
       const user = await apiRequest<ApiUser>("auth/me/", { signal }, token);
       if (user.role !== requiredRole) {
@@ -48,7 +49,7 @@ export function useRoleDashboard(requiredRole: UserRole) {
       const [summary, cases, hearings, notifications] = await Promise.all([
         apiRequest<DashboardSummary>("dashboard/summary/", { signal }, token),
         apiRequest<PaginatedResponse<ApiCase>>(
-          requiredRole === "court_registry" ? "cases/?status=Filed" : "cases/",
+          requiredRole === "registry" ? "cases/?status=Filed" : "cases/",
           { signal },
           token,
         ),
@@ -79,7 +80,13 @@ export function useRoleDashboard(requiredRole: UserRole) {
       await load(controller.signal);
     };
     void start();
-    return () => controller.abort();
+    const interval = window.setInterval(() => {
+      void load(controller.signal, true);
+    }, 30_000);
+    return () => {
+      window.clearInterval(interval);
+      controller.abort();
+    };
   }, [attempt, load]);
 
   const retry = useCallback(() => {

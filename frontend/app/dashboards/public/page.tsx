@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { ApiPublicCase, apiRequest, formatDate } from "@/components/api";
 import { PortalHeader } from "@/components/portal-header";
 
@@ -10,6 +10,8 @@ export default function PublicDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [submittedCaseNumber, setSubmittedCaseNumber] = useState("");
+  const [searchAttempt, setSearchAttempt] = useState(0);
 
   async function searchCase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -19,16 +21,40 @@ export default function PublicDashboardPage() {
     setError(null);
     setResult(null);
     setSearched(true);
-    try {
-      const query = new URLSearchParams({ case_number: normalized });
-      const data = await apiRequest<ApiPublicCase>(`cases/track/?${query.toString()}`);
-      setResult(data);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Case search failed.");
-    } finally {
-      setLoading(false);
-    }
+    setSubmittedCaseNumber(normalized);
+    setSearchAttempt((current) => current + 1);
   }
+
+  useEffect(() => {
+    if (!submittedCaseNumber) return;
+    const controller = new AbortController();
+    const fetchCase = async (quiet: boolean) => {
+      if (!quiet) setLoading(true);
+      try {
+        const query = new URLSearchParams({ case_number: submittedCaseNumber });
+        const data = await apiRequest<ApiPublicCase>(`cases/track/?${query.toString()}`, {
+          signal: controller.signal,
+        });
+        setResult(data);
+        setError(null);
+      } catch (requestError) {
+        if (!controller.signal.aborted) {
+          setError(requestError instanceof Error ? requestError.message : "Case search failed.");
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+    const refresh = async () => fetchCase(false);
+    void refresh();
+    const interval = window.setInterval(() => {
+      void fetchCase(true);
+    }, 30_000);
+    return () => {
+      window.clearInterval(interval);
+      controller.abort();
+    };
+  }, [searchAttempt, submittedCaseNumber]);
 
   return (
     <>

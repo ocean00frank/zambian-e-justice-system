@@ -23,11 +23,13 @@ class CasePartySerializer(serializers.ModelSerializer):
 
 class CaseDocumentSerializer(serializers.ModelSerializer):
     download_url = serializers.SerializerMethodField()
+    case_number = serializers.CharField(source="case.case_number", read_only=True)
 
     class Meta:
         model = CaseDocument
         fields = (
             "id",
+            "case_number",
             "document_type",
             "original_filename",
             "sha256_digest",
@@ -215,13 +217,14 @@ class FilingCreateSerializer(serializers.Serializer):
 
 
 class FilingReceiptSerializer(serializers.ModelSerializer):
+    case_id = serializers.IntegerField(source="case.pk", read_only=True)
     case_number = serializers.CharField(source="case.case_number", read_only=True)
     court = serializers.CharField(source="case.court", read_only=True)
     document_type = serializers.SerializerMethodField()
 
     class Meta:
         model = Filing
-        fields = ("receipt_number", "case_number", "court", "document_type", "submitted_at")
+        fields = ("receipt_number", "case_id", "case_number", "court", "document_type", "submitted_at")
 
     def get_document_type(self, filing):
         document = filing.documents.first()
@@ -234,7 +237,7 @@ class CaseStatusSerializer(serializers.Serializer):
 
 class AssignCaseSerializer(serializers.Serializer):
     assigned_officer = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(role=User.Role.JUDICIAL_OFFICER, is_active=True)
+        queryset=User.objects.filter(role=User.Role.JUDGE, is_active=True)
     )
 
 

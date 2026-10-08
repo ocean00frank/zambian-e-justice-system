@@ -30,8 +30,8 @@ development, explicitly set `DEBUG=true` in the private `.env` file.
 
 Use the Django superuser account at `/admin/` to create and manage user accounts
 and assign roles. Public account registration is intentionally not provided.
-Lawyer (`legal_practitioner`), Judge (`judicial_officer`), Registry
-(`court_registry`), and Litigant (`litigant`) accounts must be provisioned by
+Lawyer (`lawyer`), Judge (`judge`), Registry
+(`registry`), and Litigant (`litigant`) accounts must be provisioned by
 an administrator. A superuser has administrator access; this is separate from
 the account's application role.
 
@@ -63,6 +63,7 @@ Authorization: Token <token>
 | GET | `/api/notifications/` | Current user's notifications |
 | PATCH | `/api/notifications/{id}/` | Mark current user's notification read/unread |
 | GET | `/api/dashboard/summary/` | Authenticated, role-filtered counts |
+| GET | `/api/judicial-officers/` | Registry only; active judges available for case assignment |
 
 An e-filing sends `court`, `title`, `case_type`, `document_type`, `parties` (JSON
 array), and `document` as multipart fields. Only PDF files up to 10 MB are

@@ -27,13 +27,13 @@ logger = logging.getLogger(__name__)
 
 
 def accessible_cases(user):
-    if user.is_superuser or user.role == User.Role.COURT_REGISTRY:
+    if user.is_superuser or user.role == User.Role.REGISTRY:
         return CourtCase.objects.all()
-    if user.role == User.Role.LEGAL_PRACTITIONER:
+    if user.role == User.Role.LAWYER:
         return CourtCase.objects.filter(
             Q(practitioner=user) | Q(parties__account=user)
         ).distinct()
-    if user.role == User.Role.JUDICIAL_OFFICER:
+    if user.role == User.Role.JUDGE:
         return CourtCase.objects.filter(assigned_officer=user)
     if user.role == User.Role.LITIGANT:
         return CourtCase.objects.filter(parties__account=user).distinct()

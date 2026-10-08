@@ -188,13 +188,13 @@ The role shown in the interface and its Django role value are:
 
 | Role | Django role value |
 |---|---|
-| Lawyer | `legal_practitioner` |
-| Judge | `judicial_officer` |
-| Registry | `court_registry` |
+| Lawyer | `lawyer` |
+| Judge | `judge` |
+| Registry | `registry` |
 | Litigant | `litigant` |
 
 If the command line prompts for a role while creating a superuser, enter the
-role value (for example, `court_registry`), not `admin`. Administrator access
+role value (for example, `registry`), not `admin`. Administrator access
 comes from Django's superuser/staff flags; it is separate from the application
 role.
 

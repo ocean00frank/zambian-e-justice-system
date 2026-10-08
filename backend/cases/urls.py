@@ -10,6 +10,7 @@ from .views import (
     FilingReceiptView,
     HealthCheckView,
     HearingViewSet,
+    JudicialOfficerListView,
     NotificationViewSet,
     PublicCaseTrackView,
 )
@@ -36,4 +37,5 @@ urlpatterns = [
         name="document-download",
     ),
     path("dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
+    path("judicial-officers/", JudicialOfficerListView.as_view(), name="judicial-officer-list"),
 ]

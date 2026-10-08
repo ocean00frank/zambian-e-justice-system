@@ -170,7 +170,7 @@ class FilingCreateView(GenericAPIView):
     serializer_class = FilingCreateSerializer
 
     def post(self, request):
-        if request.user.role != User.Role.LEGAL_PRACTITIONER and not request.user.is_superuser:
+        if request.user.role != User.Role.LAWYER and not request.user.is_superuser:
             raise PermissionDenied("Only lawyers may submit e-filings.")
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -278,7 +278,7 @@ class HearingViewSet(
         if not (
             self.request.user.is_superuser
             or self.request.user.role
-            in {User.Role.COURT_REGISTRY, User.Role.JUDICIAL_OFFICER}
+            in {User.Role.REGISTRY, User.Role.JUDGE}
         ):
             raise PermissionDenied("Only registry staff or judges may schedule hearings.")
         serializer.save()
@@ -329,7 +329,7 @@ class DashboardSummaryView(APIView):
             "upcoming_hearings": upcoming.count(),
             "unread_notifications": request.user.notifications.filter(is_read=False).count(),
         }
-        if request.user.role in {User.Role.COURT_REGISTRY} or request.user.is_superuser:
+        if request.user.role in {User.Role.REGISTRY} or request.user.is_superuser:
             data["incoming_filings"] = Filing.objects.filter(
                 case__status=CourtCase.Status.FILED
             ).count()
@@ -342,3 +342,24 @@ class HealthCheckView(APIView):
 
     def get(self, request):
         return Response({"status": "ok"})
+
+
+class JudicialOfficerListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not (request.user.is_superuser or request.user.role == User.Role.REGISTRY):
+            raise PermissionDenied("Only Registry staff may view assignable judges.")
+        officers = User.objects.filter(
+            role=User.Role.JUDGE,
+            is_active=True,
+        ).order_by("last_name", "first_name", "username")
+        return Response(
+            [
+                {
+                    "id": officer.pk,
+                    "full_name": officer.get_full_name() or officer.username,
+                }
+                for officer in officers
+            ]
+        )

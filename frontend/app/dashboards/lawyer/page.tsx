@@ -6,7 +6,7 @@ import { formatDate, roleLabelByRole } from "@/components/api";
 import { useRoleDashboard } from "@/components/use-role-dashboard";
 
 export default function LawyerDashboard() {
-  const { data, error, loading, retry } = useRoleDashboard("legal_practitioner");
+  const { data, error, loading, retry } = useRoleDashboard("lawyer");
 
   const metrics = [
     { label: "Active cases", value: data?.summary.active_cases },
@@ -20,7 +20,7 @@ export default function LawyerDashboard() {
     <DashboardShell
       title="Lawyer dashboard"
       subtitle="Your casework overview"
-      role={roleLabelByRole.legal_practitioner}
+      role={roleLabelByRole.lawyer}
       userName={userName}
       navItems={[
         { label: "Dashboard", href: "/dashboards/lawyer", active: true },

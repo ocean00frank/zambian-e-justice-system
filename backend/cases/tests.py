@@ -34,22 +34,22 @@ class CaseApiTests(TestCase):
             username="filing-lawyer",
             email="filing-lawyer@example.test",
             password="A-strong-test-password-92",
-            role=User.Role.LEGAL_PRACTITIONER,
+            role=User.Role.LAWYER,
         )
         self.other_lawyer = User.objects.create_user(
             username="other-lawyer",
             password="A-strong-test-password-92",
-            role=User.Role.LEGAL_PRACTITIONER,
+            role=User.Role.LAWYER,
         )
         self.registry = User.objects.create_user(
             username="registry-user",
             password="A-strong-test-password-92",
-            role=User.Role.COURT_REGISTRY,
+            role=User.Role.REGISTRY,
         )
         self.officer = User.objects.create_user(
             username="judicial-officer",
             password="A-strong-test-password-92",
-            role=User.Role.JUDICIAL_OFFICER,
+            role=User.Role.JUDGE,
         )
         self.case = CourtCase.objects.create(
             case_number="HC/123/2026",
@@ -84,6 +84,17 @@ class CaseApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["active_cases"], 0)
         self.assertEqual(response.data["pending_filings"], 0)
+
+    def test_registry_can_retrieve_assignable_judicial_officers(self):
+        response = self.authenticated_client(self.registry).get("/api/judicial-officers/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, [{"id": self.officer.pk, "full_name": "judicial-officer"}])
+
+    def test_non_registry_user_cannot_retrieve_assignable_judicial_officers(self):
+        response = self.authenticated_client(self.lawyer).get("/api/judicial-officers/")
+
+        self.assertEqual(response.status_code, 403)
 
     def test_case_status_filter_returns_only_matching_cases(self):
         registered_case = CourtCase.objects.create(
@@ -198,6 +209,8 @@ class CaseApiTests(TestCase):
 
         self.assertEqual(response.status_code, 201, response.data)
         self.assertTrue(response.data["receipt_number"].startswith("EJ-"))
+        receipt_case = CourtCase.objects.get(pk=response.data["case_id"])
+        self.assertEqual(response.data["case_number"], receipt_case.case_number)
         document = CaseDocument.objects.get(original_filename="claim.pdf")
         with document.file.open("rb") as saved_file:
             encrypted = saved_file.read()

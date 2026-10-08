@@ -12,10 +12,42 @@ export type ApiCase = {
     courtroom: string;
   } | null;
   updated_at: string;
+  assigned_officer: number | null;
+  assigned_officer_name: string | null;
+};
+
+export type ApiCaseDetail = ApiCase & {
+  practitioner: number;
+  practitioner_name: string;
+  parties: { id: number; name: string }[];
+  documents: ApiDocument[];
+  hearings: ApiHearing[];
+  events: { id: number; action: string; actor_name: string; created_at: string }[];
+};
+
+export type ApiDocument = {
+  id: number;
+  case_number: string;
+  document_type: string;
+  original_filename: string;
+  sha256_digest: string;
+  size_bytes: number;
+  uploaded_at: string;
+  download_url: string;
+};
+
+export type ApiFilingReceipt = {
+  receipt_number: string;
+  case_id: number;
+  case_number: string;
+  court: string;
+  document_type: string | null;
+  submitted_at: string;
 };
 
 export type ApiNotification = {
   id: number;
+  case_number: string | null;
   title: string;
   message: string;
   channel: string;
@@ -32,6 +64,11 @@ export type ApiHearing = {
   courtroom: string;
   purpose: string;
   status: "Scheduled" | "Completed" | "Cancelled";
+};
+
+export type ApiJudicialOfficer = {
+  id: number;
+  full_name: string;
 };
 
 export type ApiPublicCase = {
@@ -54,9 +91,9 @@ export type DashboardSummary = {
 };
 
 export type UserRole =
-  | "legal_practitioner"
-  | "judicial_officer"
-  | "court_registry"
+  | "lawyer"
+  | "judge"
+  | "registry"
   | "litigant";
 
 export type ApiUser = {
@@ -75,16 +112,16 @@ export type PaginatedResponse<T> = {
 };
 
 export const dashboardPathByRole: Record<UserRole, string> = {
-  legal_practitioner: "/dashboards/lawyer",
-  judicial_officer: "/dashboards/judge",
-  court_registry: "/dashboards/registry",
+  lawyer: "/dashboards/lawyer",
+  judge: "/dashboards/judge",
+  registry: "/dashboards/registry",
   litigant: "/dashboards/litigant",
 };
 
 export const roleLabelByRole: Record<UserRole, string> = {
-  legal_practitioner: "Lawyer",
-  judicial_officer: "Judge",
-  court_registry: "Registry",
+  lawyer: "Lawyer",
+  judge: "Judge",
+  registry: "Registry",
   litigant: "Litigant",
 };
 
@@ -96,6 +133,23 @@ export const API_BASE_URL = (
 
 export function getSessionToken() {
   return window.sessionStorage.getItem("ejustice_token");
+}
+
+function getApiErrorMessage(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    const messages = value.map(getApiErrorMessage).filter((message): message is string => Boolean(message));
+    return messages.length ? messages.join(" ") : null;
+  }
+  if (typeof value !== "object" || value === null) return null;
+
+  const record = value as Record<string, unknown>;
+  if (typeof record.detail === "string") return record.detail;
+  const messages = Object.entries(record).flatMap(([field, fieldValue]) => {
+    const message = getApiErrorMessage(fieldValue);
+    return message ? [`${field}: ${message}`] : [];
+  });
+  return messages.length ? messages.join(" ") : null;
 }
 
 export async function apiRequest<T>(
@@ -131,9 +185,7 @@ export async function apiRequest<T>(
           : `The request failed (${response.status}). Please try again.`;
     try {
       const body: unknown = await response.json();
-      if (typeof body === "object" && body !== null && "detail" in body && typeof body.detail === "string") {
-        detail = body.detail;
-      }
+      detail = getApiErrorMessage(body) ?? detail;
     } catch {
       // Use the status-based message when the server returns no JSON error body.
     }

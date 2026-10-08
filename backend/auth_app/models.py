@@ -6,9 +6,9 @@ class User(AbstractUser):
     REQUIRED_FIELDS = ["email", "role"]
 
     class Role(models.TextChoices):
-        LEGAL_PRACTITIONER = "legal_practitioner", "Lawyer"
-        JUDICIAL_OFFICER = "judicial_officer", "Judge"
-        COURT_REGISTRY = "court_registry", "Registry"
+        LAWYER = "lawyer", "Lawyer"
+        JUDGE = "judge", "Judge"
+        REGISTRY = "registry", "Registry"
         LITIGANT = "litigant", "Litigant"
 
     role = models.CharField(max_length=32, choices=Role.choices)

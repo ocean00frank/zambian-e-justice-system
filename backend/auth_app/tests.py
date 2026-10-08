@@ -7,12 +7,18 @@ User = get_user_model()
 
 
 class AuthenticationApiTests(TestCase):
+    def test_role_codes_use_simple_values(self):
+        self.assertEqual(
+            [value for value, _label in User.Role.choices],
+            ["lawyer", "judge", "registry", "litigant"],
+        )
+
     def setUp(self):
         self.user = User.objects.create_user(
             username="lawyer-one",
             email="lawyer@example.test",
             password="A-strong-test-password-92",
-            role=User.Role.LEGAL_PRACTITIONER,
+            role=User.Role.LAWYER,
         )
         self.client = APIClient()
 
@@ -25,7 +31,7 @@ class AuthenticationApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data["token"])
-        self.assertEqual(response.data["user"]["role"], User.Role.LEGAL_PRACTITIONER)
+        self.assertEqual(response.data["user"]["role"], User.Role.LAWYER)
         self.assertEqual(response.data["user"]["role_label"], "Lawyer")
 
     def test_login_accepts_email(self):
@@ -56,7 +62,7 @@ class AuthenticationApiTests(TestCase):
             username="system-admin",
             email="admin@example.test",
             password="A-strong-test-password-92",
-            role=User.Role.COURT_REGISTRY,
+            role=User.Role.REGISTRY,
         )
         self.client.force_login(administrator)
 
@@ -73,7 +79,7 @@ class AuthenticationApiTests(TestCase):
                 "email": "officer@example.test",
                 "first_name": "Provisioned",
                 "last_name": "Officer",
-                "role": User.Role.JUDICIAL_OFFICER,
+                "role": User.Role.JUDGE,
                 "password1": "A-strong-test-password-92",
                 "password2": "A-strong-test-password-92",
             },
@@ -81,4 +87,4 @@ class AuthenticationApiTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         provisioned = User.objects.get(username="provisioned-officer")
-        self.assertEqual(provisioned.role, User.Role.JUDICIAL_OFFICER)
+        self.assertEqual(provisioned.role, User.Role.JUDGE)
