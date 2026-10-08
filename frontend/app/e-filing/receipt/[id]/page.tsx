@@ -40,7 +40,7 @@ export default function FilingReceiptPage() {
   }, [receiptNumber]);
 
   return (
-    <LawyerPageShell title="Filing receipt">
+    <LawyerPageShell title="Filing receipt" requiredRole="lawyer">
       <div className="bg-[#f8f8f4]">
         <section className="mx-auto max-w-4xl border border-[#173b30]/10 bg-white p-7 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 type PortalHeaderProps = {
   backHref?: string;
@@ -13,9 +14,13 @@ export function PortalHeader({
     <header className="border-b border-[#173b30]/10 bg-white">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
         <Link href="/" className="flex items-center gap-3" aria-label="Zambian Judiciary home">
-          <span className="flex h-10 w-10 items-center justify-center border border-[#173b30] text-xs font-bold tracking-wide text-[#173b30]">
-            ZJ
-          </span>
+          <Image
+            src="/image.png"
+            alt=""
+            width={40}
+            height={40}
+            className="h-10 w-10 object-contain"
+          />
           <span>
             <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6a7972]">
               The Judiciary of Zambia

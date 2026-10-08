@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PortalHeader } from "@/components/portal-header";
@@ -15,6 +14,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -43,13 +43,6 @@ export default function LoginPage() {
       <main className="mx-auto flex min-h-[calc(100vh-73px)] max-w-7xl items-center justify-center px-5 py-12 sm:px-8">
         <section className="w-full max-w-md">
           <div className="mb-7 text-center">
-            <Image
-              src="/image.png"
-              alt=""
-              width={96}
-              height={96}
-              className="mx-auto mb-5 h-20 w-20 object-contain"
-            />
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#987a3e]">
               Secure access
             </p>
@@ -86,17 +79,28 @@ export default function LoginPage() {
               <label htmlFor="password" className="mb-2 block text-sm font-medium text-[#314b40]">
                 Password
               </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Enter your password"
-                className="w-full rounded-md border border-[#173b30]/15 bg-[#fbfcfa] px-4 py-3 text-sm text-[#173b30] outline-none transition placeholder:text-[#98a39d] focus:border-[#173b30] focus:ring-2 focus:ring-[#173b30]/10"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full rounded-md border border-[#173b30]/15 bg-[#fbfcfa] px-4 py-3 pr-20 text-sm text-[#173b30] outline-none transition placeholder:text-[#98a39d] focus:border-[#173b30] focus:ring-2 focus:ring-[#173b30]/10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-controls="password"
+                  aria-pressed={showPassword}
+                  className="absolute inset-y-0 right-3 text-sm font-semibold text-[#173b30] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#173b30]"
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
             </div>
 
             {error && (

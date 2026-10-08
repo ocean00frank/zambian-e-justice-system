@@ -24,7 +24,7 @@ export default function RegistryDashboardPage() {
       userName={userName}
       navItems={[
         { label: "Dashboard", href: "/dashboards/registry", active: true },
-        { label: "Incoming Filings", href: "/cases" },
+        { label: "Register Cases", href: "/dashboards/registry/register" },
         { label: "Case Records", href: "/cases" },
         { label: "Cause List", href: "/cause-list" },
         { label: "Documents", href: "/documents" },
@@ -69,7 +69,7 @@ export default function RegistryDashboardPage() {
                 <h2 className="font-semibold text-slate-900">Incoming filings</h2>
                 <p className="mt-1 text-sm text-slate-500">Recently filed cases awaiting registry processing</p>
               </div>
-              <Link href="/cases" className="text-sm font-semibold text-emerald-700">Case register</Link>
+              <Link href="/dashboards/registry/register" className="text-sm font-semibold text-emerald-700">Register a case</Link>
             </div>
             {loading ? (
               <p className="px-5 py-8 text-sm text-slate-500">Loading filings…</p>
@@ -82,6 +82,7 @@ export default function RegistryDashboardPage() {
                       <p className="mt-1 text-sm text-slate-500">{item.court} · {item.case_type}</p>
                     </div>
                     <p className="text-sm text-slate-500">Filed {formatDate(item.filing_date)}</p>
+                    <Link href={`/dashboards/registry/register?case=${item.id}`} className="text-sm font-semibold text-emerald-700">Review</Link>
                   </article>
                 ))}
               </div>

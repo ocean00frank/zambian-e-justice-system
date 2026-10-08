@@ -85,7 +85,7 @@ export default function EFilingPage() {
   }
 
   return (
-    <LawyerPageShell title="E-Filing">
+    <LawyerPageShell title="E-Filing" requiredRole="lawyer">
       <div className="bg-[#f8f8f4]">
         <section className="mx-auto max-w-5xl border border-[#173b30]/10 bg-white p-6 shadow-sm lg:p-8">
           <div className="mb-8">
