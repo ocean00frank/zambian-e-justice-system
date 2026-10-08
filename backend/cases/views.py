@@ -58,6 +58,9 @@ class CaseViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
                 | Q(title__icontains=search)
                 | Q(parties__name__icontains=search)
             ).distinct()
+        case_status = self.request.query_params.get("status")
+        if case_status:
+            queryset = queryset.filter(status=case_status)
         filing_date = self.request.query_params.get("filing_date")
         if filing_date:
             queryset = queryset.filter(filing_date=filing_date)
@@ -168,7 +171,7 @@ class FilingCreateView(GenericAPIView):
 
     def post(self, request):
         if request.user.role != User.Role.LEGAL_PRACTITIONER and not request.user.is_superuser:
-            raise PermissionDenied("Only legal practitioners may submit e-filings.")
+            raise PermissionDenied("Only lawyers may submit e-filings.")
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -264,6 +267,11 @@ class HearingViewSet(
         day = self.request.query_params.get("date")
         if day:
             queryset = queryset.filter(hearing_date=day)
+        if self.request.query_params.get("upcoming", "").lower() in {"true", "1", "yes"}:
+            queryset = queryset.filter(
+                hearing_date__gte=timezone.localdate(),
+                status=Hearing.Status.SCHEDULED,
+            )
         return queryset
 
     def perform_create(self, serializer):
@@ -272,7 +280,7 @@ class HearingViewSet(
             or self.request.user.role
             in {User.Role.COURT_REGISTRY, User.Role.JUDICIAL_OFFICER}
         ):
-            raise PermissionDenied("Only court registry staff or judicial officers may schedule hearings.")
+            raise PermissionDenied("Only registry staff or judges may schedule hearings.")
         serializer.save()
 
 
@@ -317,6 +325,7 @@ class DashboardSummaryView(APIView):
         )
         data = {
             "active_cases": cases.exclude(status=CourtCase.Status.CONCLUDED).count(),
+            "pending_filings": cases.filter(status=CourtCase.Status.FILED).count(),
             "upcoming_hearings": upcoming.count(),
             "unread_notifications": request.user.notifications.filter(is_read=False).count(),
         }

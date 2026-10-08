@@ -1,95 +1,116 @@
+"use client";
+
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { causeList, justiceCases } from "@/components/mock-data";
-
-const navItems = [
-  { label: "Dashboard", href: "/dashboards/judge", active: true },
-  { label: "Incoming Cases", href: "/cases" },
-  { label: "Case Management", href: "/cases" },
-  { label: "Cause List", href: "/cause-list" },
-  { label: "Documents", href: "/documents" },
-  { label: "Notifications", href: "/notifications" },
-];
-
-function StatusBadge({ status }: { status: string }) {
-  const palette = {
-    "Hearing Scheduled": "bg-amber-100 text-amber-700",
-    Assigned: "bg-blue-100 text-blue-700",
-    "Judgment Delivered": "bg-emerald-100 text-emerald-700",
-    Filed: "bg-slate-200 text-slate-700",
-  };
-
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${palette[status as keyof typeof palette] ?? "bg-slate-200 text-slate-700"}`}>{status}</span>;
-}
+import { formatDate, roleLabelByRole } from "@/components/api";
+import { useRoleDashboard } from "@/components/use-role-dashboard";
 
 export default function JudgeDashboardPage() {
+  const { data, error, loading, retry } = useRoleDashboard("judicial_officer");
+  const metrics = [
+    { label: "Assigned cases", value: data?.summary.active_cases },
+    { label: "Upcoming hearings", value: data?.summary.upcoming_hearings },
+    { label: "Unread notifications", value: data?.summary.unread_notifications },
+  ];
+  const userName = data?.user.full_name || data?.user.username || "Account";
+
   return (
-    <DashboardShell title="Judicial Officer Dashboard" subtitle="Assigned and incoming matters" role="Judge" navItems={navItems}>
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {[
-          { label: "Assigned Cases", value: "9", note: "3 active hearings" },
-          { label: "Incoming Filings", value: "6", note: "New this week" },
-          { label: "Scheduled Hearings", value: "11", note: "Across courts" },
-          { label: "Pending Review", value: "2", note: "Waiting on registry" },
-        ].map((item) => (
-          <div key={item.label} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-medium text-slate-500">{item.label}</p>
-            <p className="mt-4 text-4xl font-bold text-slate-900">{item.value}</p>
-            <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">{item.note}</p>
-          </div>
-        ))}
-      </div>
+    <DashboardShell
+      title="Judge dashboard"
+      subtitle="Assigned matters and hearings"
+      role={roleLabelByRole.judicial_officer}
+      userName={userName}
+      navItems={[
+        { label: "Dashboard", href: "/dashboards/judge", active: true },
+        { label: "Assigned Cases", href: "/cases" },
+        { label: "Cause List", href: "/cause-list" },
+        { label: "Documents", href: "/documents" },
+        { label: "Notifications", href: "/notifications" },
+      ]}
+    >
+      <div className="space-y-8">
+        <div>
+          <p className="text-sm font-medium text-emerald-700">Judge portal</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
+            Welcome, {data?.user.full_name?.trim().split(/\s+/)[0] || data?.user.username || "…"}
+          </h1>
+          <p className="mt-2 text-slate-600">Review your assigned matters and scheduled hearings.</p>
+        </div>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-center justify-between">
-            <h3 className="text-xl font-semibold text-slate-900">Assigned cases</h3>
-            <Link href="/cases" className="text-sm font-semibold text-emerald-700">Open case register</Link>
-          </div>
+        {error && (
+          <section role="alert" className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
+            <p>{error}</p>
+            {error.includes("sign in") || error.includes("session has expired") ? (
+              <Link href="/login" className="font-semibold underline underline-offset-4">Go to sign in</Link>
+            ) : (
+              <button type="button" onClick={retry} className="font-semibold underline underline-offset-4">Try again</button>
+            )}
+          </section>
+        )}
 
-          <div className="space-y-4">
-            {justiceCases.map((item) => (
-              <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg font-semibold text-slate-900">{item.id}</span>
-                      <StatusBadge status={item.status} />
-                    </div>
-                    <p className="mt-2 text-sm text-slate-600">{item.title}</p>
-                  </div>
-                  <div className="text-sm text-slate-500">
-                    <p>Next hearing: {item.nextHearing}</p>
-                    <p className="mt-1">Assigned to: {item.assignedTo}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <section aria-label="Work summary" className="grid gap-4 sm:grid-cols-3">
+          {metrics.map((metric) => (
+            <article key={metric.label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-medium text-slate-600">{metric.label}</p>
+              <p className="mt-3 text-3xl font-semibold text-slate-900">
+                {loading ? <span className="animate-pulse text-slate-300">…</span> : data ? metric.value ?? 0 : "—"}
+              </p>
+            </article>
+          ))}
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-xl font-semibold text-slate-900">Cause list</h3>
-          <div className="mt-5 space-y-4">
-            {causeList.slice(0, 2).map((day) => (
-              <div key={day.day} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-slate-900">{day.day}</p>
-                <div className="mt-3 space-y-2">
-                  {day.entries.map((entry) => (
-                    <div key={`${day.day}-${entry.caseId}`} className="rounded-xl bg-white p-3 text-sm text-slate-600">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-slate-800">{entry.time}</span>
-                        <span className="text-xs uppercase tracking-[0.16em] text-emerald-700">{entry.purpose}</span>
-                      </div>
-                      <p className="mt-1 font-medium text-slate-700">{entry.caseId}</p>
-                      <p className="text-xs text-slate-500">{entry.court}</p>
-                    </div>
-                  ))}
-                </div>
+        <div className="grid gap-6 xl:grid-cols-2">
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="font-semibold text-slate-900">Assigned cases</h2>
+                <p className="mt-1 text-sm text-slate-500">Matters assigned to you</p>
               </div>
-            ))}
-          </div>
-        </section>
+              <Link href="/cases" className="text-sm font-semibold text-emerald-700">View all</Link>
+            </div>
+            {loading ? (
+              <p className="px-5 py-8 text-sm text-slate-500">Loading cases…</p>
+            ) : data?.cases.length ? (
+              <div className="divide-y divide-slate-100">
+                {data.cases.slice(0, 5).map((item) => (
+                  <article key={item.id} className="px-5 py-4">
+                    <p className="font-medium text-slate-900">{item.case_number} · {item.title}</p>
+                    <p className="mt-1 text-sm text-slate-500">{item.court} · {item.status}</p>
+                  </article>
+                ))}
+              </div>
+            ) : error ? null : (
+              <p className="px-5 py-8 text-center text-sm text-slate-500">No cases are currently assigned to you.</p>
+            )}
+          </section>
+
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="font-semibold text-slate-900">Upcoming hearings</h2>
+                <p className="mt-1 text-sm text-slate-500">Scheduled in your assigned matters</p>
+              </div>
+              <Link href="/cause-list" className="text-sm font-semibold text-emerald-700">Cause list</Link>
+            </div>
+            {loading ? (
+              <p className="px-5 py-8 text-sm text-slate-500">Loading hearings…</p>
+            ) : data?.hearings.filter((hearing) => hearing.status === "Scheduled").length ? (
+              <div className="divide-y divide-slate-100">
+                {data.hearings.filter((hearing) => hearing.status === "Scheduled").slice(0, 5).map((hearing) => (
+                  <article key={hearing.id} className="px-5 py-4">
+                    <p className="font-medium text-slate-900">{hearing.case_number} · {hearing.purpose}</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {formatDate(hearing.hearing_date)} · {hearing.hearing_time}
+                      {hearing.courtroom ? ` · ${hearing.courtroom}` : ""}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            ) : error ? null : (
+              <p className="px-5 py-8 text-center text-sm text-slate-500">No upcoming hearings are scheduled.</p>
+            )}
+          </section>
+        </div>
       </div>
     </DashboardShell>
   );

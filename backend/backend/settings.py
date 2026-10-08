@@ -152,11 +152,12 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
+require_secure_transport = os.getenv("SECURE_SSL_REDIRECT", "false").lower() in {"1", "true", "yes"}
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    if os.getenv("TRUST_X_FORWARDED_PROTO", "false").lower() in {"1", "true", "yes"}:
+    SECURE_SSL_REDIRECT = require_secure_transport
+    SESSION_COOKIE_SECURE = require_secure_transport
+    CSRF_COOKIE_SECURE = require_secure_transport
+    if require_secure_transport and os.getenv("TRUST_X_FORWARDED_PROTO", "false").lower() in {"1", "true", "yes"}:
         SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 else:
     SECURE_SSL_REDIRECT = False

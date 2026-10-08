@@ -1,4 +1,4 @@
-from datetime import date, time
+from datetime import date, time, timedelta
 from hashlib import sha256
 import tempfile
 
@@ -70,6 +70,75 @@ class CaseApiTests(TestCase):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f"Token {Token.objects.create(user=user).key}")
         return client
+
+    def test_dashboard_summary_includes_the_practitioners_pending_filings(self):
+        response = self.authenticated_client(self.lawyer).get("/api/dashboard/summary/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["pending_filings"], 1)
+        self.assertEqual(response.data["active_cases"], 1)
+
+    def test_dashboard_summary_only_counts_cases_accessible_to_the_user(self):
+        response = self.authenticated_client(self.officer).get("/api/dashboard/summary/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["active_cases"], 0)
+        self.assertEqual(response.data["pending_filings"], 0)
+
+    def test_case_status_filter_returns_only_matching_cases(self):
+        registered_case = CourtCase.objects.create(
+            case_number="HC/125/2026",
+            title="Registered matter",
+            case_type="Civil Matter",
+            court=CourtCase.Court.HIGH_COURT,
+            practitioner=self.lawyer,
+            status=CourtCase.Status.REGISTERED,
+        )
+
+        response = self.authenticated_client(self.registry).get(
+            "/api/cases/",
+            {"status": CourtCase.Status.FILED},
+        )
+        visible_numbers = {item["case_number"] for item in response.data["results"]}
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(self.case.case_number, visible_numbers)
+        self.assertNotIn(registered_case.case_number, visible_numbers)
+
+    def test_upcoming_hearings_filter_only_returns_scheduled_future_hearings(self):
+        upcoming = Hearing.objects.create(
+            case=self.case,
+            hearing_date=date.today() + timedelta(days=1),
+            hearing_time=time(10, 0),
+            purpose="Hearing",
+            scheduled_by=self.registry,
+        )
+        past = Hearing.objects.create(
+            case=self.case,
+            hearing_date=date.today() - timedelta(days=1),
+            hearing_time=time(10, 0),
+            purpose="Past hearing",
+            scheduled_by=self.registry,
+        )
+        cancelled = Hearing.objects.create(
+            case=self.case,
+            hearing_date=date.today() + timedelta(days=2),
+            hearing_time=time(10, 0),
+            purpose="Cancelled hearing",
+            status=Hearing.Status.CANCELLED,
+            scheduled_by=self.registry,
+        )
+
+        response = self.authenticated_client(self.lawyer).get(
+            "/api/hearings/",
+            {"upcoming": "true"},
+        )
+        visible_ids = {item["id"] for item in response.data["results"]}
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(visible_ids, {upcoming.pk})
+        self.assertNotIn(past.pk, visible_ids)
+        self.assertNotIn(cancelled.pk, visible_ids)
 
     def test_public_case_tracking_only_returns_public_fields(self):
         response = APIClient().get(

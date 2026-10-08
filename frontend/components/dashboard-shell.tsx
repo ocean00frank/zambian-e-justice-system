@@ -13,6 +13,7 @@ type DashboardShellProps = {
   role: string;
   navItems: NavItem[];
   children: ReactNode;
+  userName: string;
 };
 
 export function DashboardShell({
@@ -21,7 +22,16 @@ export function DashboardShell({
   role,
   navItems,
   children,
+  userName,
 }: DashboardShellProps) {
+  const initials = userName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join("");
+
   return (
     <div className="min-h-screen bg-[#f8f8f4] text-[#173b30]">
       <div className="mx-auto flex max-w-[1600px]">
@@ -74,15 +84,12 @@ export function DashboardShell({
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="hidden border border-[#173b30]/10 bg-[#f8f8f4] px-3 py-1 text-xs font-medium text-[#68776f] md:block">
-                  Secure session active
-                </div>
                 <div className="flex items-center gap-3 border border-[#173b30]/10 bg-white px-3 py-2">
                   <div className="flex h-9 w-9 items-center justify-center bg-[#173b30] text-sm font-semibold text-white">
-                    EN
+                    {initials || "U"}
                   </div>
                   <div className="hidden text-left sm:block">
-                    <p className="text-sm font-semibold text-[#173b30]">Evelyn N.</p>
+                    <p className="text-sm font-semibold text-[#173b30]">{userName}</p>
                     <p className="text-xs text-[#78867f]">{subtitle}</p>
                   </div>
                 </div>

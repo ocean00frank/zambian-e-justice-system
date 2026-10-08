@@ -42,9 +42,9 @@ export const justiceCases: CaseRecord[] = [
       { name: "Supporting Affidavit", submitted: "05 Sept 2026", status: "Available", type: "PDF" },
     ],
     timeline: [
-      { date: "04 Sept 2026", event: "Filing submitted", actor: "Legal Practitioner" },
+      { date: "04 Sept 2026", event: "Filing submitted", actor: "Lawyer" },
       { date: "05 Sept 2026", event: "Case registered", actor: "Registry" },
-      { date: "06 Sept 2026", event: "Case assigned", actor: "Judicial Officer" },
+      { date: "06 Sept 2026", event: "Case assigned", actor: "Judge" },
       { date: "15 Oct 2026", event: "Hearing scheduled", actor: "Registry" },
     ],
     hearings: [
@@ -69,9 +69,9 @@ export const justiceCases: CaseRecord[] = [
       { name: "Notice of Appointment", submitted: "12 Sept 2026", status: "Available", type: "PDF" },
     ],
     timeline: [
-      { date: "11 Sept 2026", event: "Filing submitted", actor: "Legal Practitioner" },
+      { date: "11 Sept 2026", event: "Filing submitted", actor: "Lawyer" },
       { date: "12 Sept 2026", event: "Case registered", actor: "Registry" },
-      { date: "14 Sept 2026", event: "Assigned to magistrate", actor: "Judicial Officer" },
+      { date: "14 Sept 2026", event: "Assigned to magistrate", actor: "Judge" },
     ],
     hearings: [
       { date: "18 Oct 2026", time: "08:30", courtroom: "Courtroom 2", purpose: "Mention", status: "Scheduled" },
@@ -94,9 +94,9 @@ export const justiceCases: CaseRecord[] = [
       { name: "Judgment Notice", submitted: "05 Oct 2026", status: "Available", type: "PDF" },
     ],
     timeline: [
-      { date: "02 Oct 2026", event: "Filing submitted", actor: "Legal Practitioner" },
+      { date: "02 Oct 2026", event: "Filing submitted", actor: "Lawyer" },
       { date: "03 Oct 2026", event: "Case registered", actor: "Registry" },
-      { date: "04 Oct 2026", event: "Assigned", actor: "Judicial Officer" },
+      { date: "04 Oct 2026", event: "Assigned", actor: "Judge" },
       { date: "05 Oct 2026", event: "Judgment delivered", actor: "Justice C. Phiri" },
     ],
     hearings: [
@@ -140,8 +140,8 @@ export const auditHistory = [
 ];
 
 export const adminUsers = [
-  { name: "M. Banda", role: "Legal Practitioner", status: "Active", lastLogin: "2 hours ago" },
-  { name: "L. Nsakanya", role: "Judicial Officer", status: "Active", lastLogin: "15 mins ago" },
+  { name: "M. Banda", role: "Lawyer", status: "Active", lastLogin: "2 hours ago" },
+  { name: "L. Nsakanya", role: "Judge", status: "Active", lastLogin: "15 mins ago" },
   { name: "C. Mwale", role: "Registry Clerk", status: "Pending Review", lastLogin: "1 day ago" },
   { name: "A. Simukoko", role: "Administrator", status: "Active", lastLogin: "Today" },
 ];

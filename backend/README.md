@@ -30,8 +30,10 @@ development, explicitly set `DEBUG=true` in the private `.env` file.
 
 Use the Django superuser account at `/admin/` to create and manage user accounts
 and assign roles. Public account registration is intentionally not provided.
-Legal Practitioner, Judicial Officer, Court Registry, and Litigant accounts
-must be provisioned by an administrator. A superuser has administrator access.
+Lawyer (`legal_practitioner`), Judge (`judicial_officer`), Registry
+(`court_registry`), and Litigant (`litigant`) accounts must be provisioned by
+an administrator. A superuser has administrator access; this is separate from
+the account's application role.
 
 ## API
 
@@ -47,17 +49,17 @@ Authorization: Token <token>
 | POST | `/api/auth/logout/` | Authenticated |
 | GET | `/api/auth/me/` | Authenticated |
 | GET | `/api/health/` | Public |
-| GET | `/api/cases/` | Authenticated, role-filtered; `search` and `filing_date` filters |
+| GET | `/api/cases/` | Authenticated, role-filtered; `search`, `status`, and `filing_date` filters |
 | GET | `/api/cases/{id}/` | Authenticated, role-filtered |
-| POST | `/api/cases/{id}/status/` | Judicial Officer or Court Registry |
-| POST | `/api/cases/{id}/assign/` | Court Registry |
-| POST | `/api/cases/{id}/parties/{party_id}/link-account/` | Court Registry; link a provisioned Litigant account |
+| POST | `/api/cases/{id}/status/` | Judge or Registry |
+| POST | `/api/cases/{id}/assign/` | Registry |
+| POST | `/api/cases/{id}/parties/{party_id}/link-account/` | Registry; link a provisioned Litigant account |
 | GET | `/api/cases/track/?case_number=...` | Public, only explicitly public-trackable cases |
-| POST | `/api/filings/` | Legal Practitioner; multipart PDF |
+| POST | `/api/filings/` | Lawyer; multipart PDF |
 | GET | `/api/filings/receipts/{receipt_number}/` | Authenticated case participant or court role |
 | GET | `/api/documents/` | Authenticated, role-filtered |
 | GET | `/api/documents/{id}/download/` | Authorized case participant or court role |
-| GET, POST | `/api/hearings/` | Authenticated read; court roles may schedule |
+| GET, POST | `/api/hearings/` | Authenticated read; court roles may schedule; supports `date` and `upcoming=true` filters |
 | GET | `/api/notifications/` | Current user's notifications |
 | PATCH | `/api/notifications/{id}/` | Mark current user's notification read/unread |
 | GET | `/api/dashboard/summary/` | Authenticated, role-filtered counts |

@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { PortalHeader } from "@/components/portal-header";
+import { RolePortalHeader } from "@/components/role-portal-header";
 
 export default async function FilingReceiptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   return (
     <>
-      <PortalHeader backHref="/dashboards/lawyer" backLabel="Dashboard" />
+      <RolePortalHeader />
       <div className="min-h-screen bg-[#f8f8f4] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-4xl border border-[#173b30]/10 bg-white p-7 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

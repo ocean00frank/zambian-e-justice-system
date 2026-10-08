@@ -1,10 +1,10 @@
 import { documentList } from "@/components/mock-data";
-import { PortalHeader } from "@/components/portal-header";
+import { RolePortalHeader } from "@/components/role-portal-header";
 
 export default function DocumentsPage() {
   return (
     <>
-      <PortalHeader backHref="/dashboards/lawyer" backLabel="Dashboard" />
+      <RolePortalHeader />
       <div className="min-h-screen bg-[#f8f8f4] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-6xl border border-[#173b30]/10 bg-white p-6 shadow-sm lg:p-8">
         <div className="mb-8">

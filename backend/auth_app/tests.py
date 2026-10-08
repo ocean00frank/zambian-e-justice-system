@@ -26,6 +26,7 @@ class AuthenticationApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data["token"])
         self.assertEqual(response.data["user"]["role"], User.Role.LEGAL_PRACTITIONER)
+        self.assertEqual(response.data["user"]["role_label"], "Lawyer")
 
     def test_login_accepts_email(self):
         response = self.client.post(

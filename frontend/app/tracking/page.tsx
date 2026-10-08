@@ -6,7 +6,7 @@ export default function TrackingPage() {
 
   return (
     <>
-      <PortalHeader backHref="/dashboards/lawyer" backLabel="Dashboard" />
+      <PortalHeader backHref="/dashboards/public" backLabel="Public tracking" />
       <div className="min-h-screen bg-[#f8f8f4] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-5xl border border-[#173b30]/10 bg-white p-6 shadow-sm lg:p-8">
         <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
