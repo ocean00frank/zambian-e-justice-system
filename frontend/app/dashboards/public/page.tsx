@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { ApiPublicCase, apiRequest, formatDate } from "@/components/api";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { ApiPublicCase, apiRequest, formatDate, getSessionToken } from "@/components/api";
+import { HearingCountdown } from "@/components/hearing-countdown";
 import { PortalHeader } from "@/components/portal-header";
 
 export default function PublicDashboardPage() {
@@ -12,6 +13,8 @@ export default function PublicDashboardPage() {
   const [searched, setSearched] = useState(false);
   const [submittedCaseNumber, setSubmittedCaseNumber] = useState("");
   const [searchAttempt, setSearchAttempt] = useState(0);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
+  const [hasSession, setHasSession] = useState(false);
 
   async function searchCase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -20,41 +23,59 @@ export default function PublicDashboardPage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setLastRefreshedAt(null);
+    setLoading(true);
     setSearched(true);
     setSubmittedCaseNumber(normalized);
     setSearchAttempt((current) => current + 1);
+    setHasSession(Boolean(getSessionToken()));
   }
+
+  const fetchCase = useCallback(async (caseNumberToFetch: string, signal: AbortSignal, quiet: boolean) => {
+    if (!quiet) setLoading(true);
+    try {
+      const query = new URLSearchParams({ case_number: caseNumberToFetch });
+      const data = await apiRequest<ApiPublicCase>(
+        `cases/track/?${query.toString()}`,
+        { signal },
+        getSessionToken(),
+      );
+      setResult(data);
+      setError(null);
+      setLastRefreshedAt(new Date().toISOString());
+    } catch (requestError) {
+      if (!signal.aborted) {
+        setError(requestError instanceof Error ? requestError.message : "Case search failed.");
+      }
+    } finally {
+      if (!signal.aborted) setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!submittedCaseNumber) return;
     const controller = new AbortController();
-    const fetchCase = async (quiet: boolean) => {
-      if (!quiet) setLoading(true);
-      try {
-        const query = new URLSearchParams({ case_number: submittedCaseNumber });
-        const data = await apiRequest<ApiPublicCase>(`cases/track/?${query.toString()}`, {
-          signal: controller.signal,
-        });
-        setResult(data);
-        setError(null);
-      } catch (requestError) {
-        if (!controller.signal.aborted) {
-          setError(requestError instanceof Error ? requestError.message : "Case search failed.");
-        }
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
+    let requestInFlight = false;
+    let isInitialRequest = true;
+    const refresh = () => {
+      if (requestInFlight || document.visibilityState === "hidden") return;
+      requestInFlight = true;
+      void fetchCase(submittedCaseNumber, controller.signal, !isInitialRequest).finally(() => {
+        requestInFlight = false;
+        isInitialRequest = false;
+      });
     };
-    const refresh = async () => fetchCase(false);
-    void refresh();
-    const interval = window.setInterval(() => {
-      void fetchCase(true);
-    }, 30_000);
+    refresh();
+    const interval = window.setInterval(refresh, 15_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
     return () => {
       window.clearInterval(interval);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
       controller.abort();
     };
-  }, [searchAttempt, submittedCaseNumber]);
+  }, [fetchCase, searchAttempt, submittedCaseNumber]);
 
   return (
     <>
@@ -84,11 +105,11 @@ export default function PublicDashboardPage() {
             </button>
           </form>
 
-          {error && <p role="alert" className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">{error}</p>}
+          {error && !result && <p role="alert" className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">{error}</p>}
           {!error && searched && !loading && !result && (
             <p className="mt-6 text-sm text-slate-600">No publicly trackable case was found.</p>
           )}
-          {!searched && <p className="mt-6 text-sm text-slate-500">Enter a case number to view its public status and timeline.</p>}
+          {!searched && <p className="mt-6 text-sm text-slate-500">Enter a case number to view its status and progress timeline. Sign in to track a private case linked to your account.</p>}
 
           {result && (
             <section aria-label="Case tracking result" className="mt-8 rounded-xl border border-slate-200 bg-slate-50 p-6">
@@ -107,13 +128,27 @@ export default function PublicDashboardPage() {
               </dl>
 
               {result.next_hearing && (
-                <p className="mt-6 text-sm text-slate-700">
-                  Next hearing: <strong>{formatDate(result.next_hearing.date)} · {result.next_hearing.time}</strong>
-                </p>
+                <>
+                  <p className="mt-6 text-sm text-slate-700">
+                    Next hearing: <strong>{formatDate(result.next_hearing.date)} · {result.next_hearing.time}</strong>
+                  </p>
+                  <HearingCountdown
+                    date={result.next_hearing.date}
+                    time={result.next_hearing.time}
+                    className="mt-1 text-sm font-medium text-emerald-700"
+                  />
+                </>
               )}
 
               <div className="mt-8">
-                <h3 className="font-semibold text-slate-900">Public timeline</h3>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold text-slate-900">Case progress timeline</h3>
+                  {lastRefreshedAt && (
+                    <p className="text-xs text-slate-500">
+                      Last checked {new Intl.DateTimeFormat("en-ZM", { timeStyle: "short" }).format(new Date(lastRefreshedAt))}
+                    </p>
+                  )}
+                </div>
                 {result.public_timeline.length ? (
                   <ol className="mt-4 space-y-3">
                     {result.public_timeline.map((event, index) => (
@@ -126,8 +161,18 @@ export default function PublicDashboardPage() {
                 ) : (
                   <p className="mt-3 text-sm text-slate-500">No public updates are available.</p>
                 )}
+                {error && (
+                  <p role="status" className="mt-3 text-sm text-amber-800">
+                    Could not refresh the latest case progress. Showing the last successfully loaded update.
+                  </p>
+                )}
               </div>
             </section>
+          )}
+          {error && !result && !hasSession && (
+            <p className="mt-3 text-sm text-slate-600">
+              If this case is not publicly trackable, sign in with an account linked to the case and search again.
+            </p>
           )}
         </section>
       </main>

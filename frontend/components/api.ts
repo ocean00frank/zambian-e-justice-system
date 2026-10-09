@@ -4,8 +4,13 @@ export type ApiCase = {
   title: string;
   case_type: string;
   court: string;
+  court_division: string;
   filing_date: string;
   status: string;
+  filing_fee_amount: string | null;
+  payment_reference: string | null;
+  payment_status: "pending_review" | "verified" | null;
+  payment_proof_document_id: number | null;
   next_hearing: {
     date: string;
     time: string;
@@ -14,6 +19,7 @@ export type ApiCase = {
   updated_at: string;
   assigned_officer: number | null;
   assigned_officer_name: string | null;
+  assigned_officer_username: string | null;
 };
 
 export type ApiCaseDetail = ApiCase & {
@@ -41,7 +47,13 @@ export type ApiFilingReceipt = {
   case_id: number;
   case_number: string;
   court: string;
+  court_division: string;
   document_type: string | null;
+  fee_amount: string | null;
+  payment_reference: string;
+  payment_status: "pending_review" | "verified";
+  payment_proof_document_id: number | null;
+  payment_reviewed_at: string | null;
   submitted_at: string;
 };
 
@@ -69,6 +81,7 @@ export type ApiHearing = {
 export type ApiJudicialOfficer = {
   id: number;
   full_name: string;
+  username: string;
 };
 
 export type ApiPublicCase = {

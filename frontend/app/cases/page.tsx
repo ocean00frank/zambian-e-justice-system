@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { HearingCountdown } from "@/components/hearing-countdown";
 import { ApiCase, PaginatedResponse, apiRequest, formatDate, getSessionToken } from "@/components/api";
 import { LawyerPageShell } from "@/components/lawyer-page-shell";
 
@@ -103,7 +104,16 @@ export default function CasesPage() {
                       <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">{item.status}</span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-600">
-                      {item.next_hearing ? formatDate(item.next_hearing.date) : "Not scheduled"}
+                      {item.next_hearing ? (
+                        <>
+                          <p>{formatDate(item.next_hearing.date)} · {item.next_hearing.time}</p>
+                          <HearingCountdown
+                            date={item.next_hearing.date}
+                            time={item.next_hearing.time}
+                            className="mt-1 text-xs font-medium text-emerald-700"
+                          />
+                        </>
+                      ) : "Not scheduled"}
                     </td>
                     <td className="px-4 py-4">
                       <Link href={`/cases/${item.id}`} className="font-semibold text-emerald-700 hover:text-emerald-900">Open</Link>

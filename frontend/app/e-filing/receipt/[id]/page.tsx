@@ -61,11 +61,15 @@ export default function FilingReceiptPage() {
                 <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Case number</dt><dd className="mt-2 font-semibold text-slate-900">{receipt.case_number}</dd></div>
                 <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Submitted</dt><dd className="mt-2 font-semibold text-slate-900">{new Intl.DateTimeFormat("en-ZM", { dateStyle: "medium", timeStyle: "short" }).format(new Date(receipt.submitted_at))}</dd></div>
                 <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Court</dt><dd className="mt-2 font-semibold text-slate-900">{receipt.court}</dd></div>
+                <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Court division or registry</dt><dd className="mt-2 font-semibold text-slate-900">{receipt.court_division}</dd></div>
                 <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Document type</dt><dd className="mt-2 font-semibold text-slate-900">{receipt.document_type ?? "—"}</dd></div>
                 <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Date</dt><dd className="mt-2 font-semibold text-slate-900">{formatDate(receipt.submitted_at)}</dd></div>
+                <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Fee amount entered</dt><dd className="mt-2 font-semibold text-slate-900">{receipt.fee_amount ? `ZMW ${Number(receipt.fee_amount).toFixed(2)}` : "Not provided"}</dd></div>
+                <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Payment reference</dt><dd className="mt-2 break-all font-semibold text-slate-900">{receipt.payment_reference}</dd></div>
+                <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Payment review</dt><dd className="mt-2 font-semibold text-slate-900">{receipt.payment_status === "verified" ? "Verified by Registry" : "Awaiting Registry verification"}</dd></div>
               </dl>
-              <p className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-                This receipt confirms electronic submission. Keep the receipt number for your records.
+              <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                This confirms electronic submission only. The fee amount and proof must be checked by Registry; this receipt is not court acceptance or confirmation that the stated fee is correct.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <button type="button" onClick={() => window.print()} className="min-h-11 rounded-lg bg-[#173b30] px-5 text-sm font-semibold text-white">Print receipt</button>

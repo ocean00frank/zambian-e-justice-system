@@ -50,6 +50,7 @@ export default function NotificationsPage() {
         body: JSON.stringify({ is_read: !item.is_read }),
       }, token);
       setNotifications((current) => current.map((notification) => notification.id === updated.id ? updated : notification));
+      window.dispatchEvent(new Event("ejustice:notifications-updated"));
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : "Could not update notification.");
     }

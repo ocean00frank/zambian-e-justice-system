@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { apiRequest, getSessionToken } from "@/components/api";
+import { DashboardSummary, apiRequest, getSessionToken } from "@/components/api";
 
 export type NavItem = {
   label: string;
@@ -62,6 +62,8 @@ export function DashboardShell({
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState<number | null>(null);
+  const [notificationCountError, setNotificationCountError] = useState<string | null>(null);
   const initials = userName
     .trim()
     .split(/\s+/)
@@ -69,6 +71,51 @@ export function DashboardShell({
     .slice(0, 2)
     .map((part) => part[0].toUpperCase())
     .join("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadUnreadNotificationCount() {
+      const token = getSessionToken();
+      if (!token) {
+        setUnreadNotificationCount(null);
+        setNotificationCountError(null);
+        return;
+      }
+
+      try {
+        const summary = await apiRequest<DashboardSummary>(
+          "dashboard/summary/",
+          { signal: controller.signal },
+          token,
+        );
+        if (!controller.signal.aborted) {
+          setUnreadNotificationCount(summary.unread_notifications);
+          setNotificationCountError(null);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setUnreadNotificationCount(null);
+          setNotificationCountError(
+            error instanceof Error ? error.message : "Could not load unread notification count.",
+          );
+        }
+      }
+    }
+
+    const refreshCount = () => void loadUnreadNotificationCount();
+    refreshCount();
+    const interval = window.setInterval(refreshCount, 30_000);
+    window.addEventListener("focus", refreshCount);
+    window.addEventListener("ejustice:notifications-updated", refreshCount);
+
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshCount);
+      window.removeEventListener("ejustice:notifications-updated", refreshCount);
+    };
+  }, []);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -116,9 +163,22 @@ export function DashboardShell({
                 <NavIcon label={item.label} />
                 <span className="flex-1">{item.label}</span>
                 {item.active ? <span className="h-2 w-2 rounded-full bg-[#b79a5a]" /> : null}
+                {item.label === "Notifications" && unreadNotificationCount !== null ? (
+                  <span
+                    aria-label={`${unreadNotificationCount} unread notifications`}
+                    className="inline-flex min-w-5 items-center justify-center rounded-full bg-[#b79a5a] px-1.5 py-0.5 text-xs font-semibold leading-none text-[#173b30]"
+                  >
+                    {unreadNotificationCount}
+                  </span>
+                ) : null}
               </Link>
             ))}
           </nav>
+          {notificationCountError && (
+            <p role="alert" className="mt-3 text-xs leading-5 text-amber-200">
+              Unread notification count is unavailable: {notificationCountError}
+            </p>
+          )}
 
           <div className="mt-auto border-t border-white/15 pt-4">
             <p className="mb-4 text-xs uppercase tracking-[0.18em] text-emerald-100/70">Secure workspace</p>
@@ -148,6 +208,24 @@ export function DashboardShell({
               </div>
 
               <div className="flex items-center gap-3">
+                <Link
+                  href="/notifications"
+                  aria-label={
+                    unreadNotificationCount === null
+                      ? "Notifications"
+                      : `Notifications, ${unreadNotificationCount} unread`
+                  }
+                  className="relative flex h-10 w-10 items-center justify-center border border-[#173b30]/10 text-[#173b30] lg:hidden"
+                >
+                  <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" viewBox="0 0 24 24">
+                    <path d="M18 9a6 6 0 0 0-12 0c0 7-2.5 7-2.5 9h17C20.5 16 18 16 18 9ZM10 21h4" />
+                  </svg>
+                  {unreadNotificationCount !== null ? (
+                    <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-[#b79a5a] px-1.5 py-0.5 text-xs font-semibold leading-none text-[#173b30]">
+                      {unreadNotificationCount}
+                    </span>
+                  ) : null}
+                </Link>
                 <div className="flex items-center gap-3 border border-[#173b30]/10 bg-white px-3 py-2">
                   <div className="flex h-9 w-9 items-center justify-center bg-[#173b30] text-sm font-semibold text-white">
                     {initials || "U"}

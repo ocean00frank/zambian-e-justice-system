@@ -9,7 +9,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 from .crypto import decrypt_document
-from .models import CaseDocument, CaseEvent, CaseParty, CourtCase, Hearing, Notification
+from .models import CaseDocument, CaseEvent, CaseParty, CourtCase, Filing, Hearing, Notification
 from .services import create_notification
 
 User = get_user_model()
@@ -89,7 +89,14 @@ class CaseApiTests(TestCase):
         response = self.authenticated_client(self.registry).get("/api/judicial-officers/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data, [{"id": self.officer.pk, "full_name": "judicial-officer"}])
+        self.assertEqual(
+            response.data,
+            [{
+                "id": self.officer.pk,
+                "full_name": "judicial-officer",
+                "username": "judicial-officer",
+            }],
+        )
 
     def test_non_registry_user_cannot_retrieve_assignable_judicial_officers(self):
         response = self.authenticated_client(self.lawyer).get("/api/judicial-officers/")
@@ -115,6 +122,17 @@ class CaseApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(self.case.case_number, visible_numbers)
         self.assertNotIn(registered_case.case_number, visible_numbers)
+
+    def test_case_detail_shows_assigned_judge_username_when_full_name_is_blank(self):
+        self.case.assigned_officer = self.officer
+        self.case.save(update_fields=("assigned_officer",))
+
+        response = self.authenticated_client(self.lawyer).get(f"/api/cases/{self.case.pk}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["assigned_officer"], self.officer.pk)
+        self.assertEqual(response.data["assigned_officer_name"], self.officer.username)
+        self.assertEqual(response.data["assigned_officer_username"], self.officer.username)
 
     def test_upcoming_hearings_filter_only_returns_scheduled_future_hearings(self):
         upcoming = Hearing.objects.create(
@@ -174,6 +192,32 @@ class CaseApiTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_case_participant_can_track_private_case_but_other_user_cannot(self):
+        self.case.is_publicly_trackable = False
+        self.case.save(update_fields=("is_publicly_trackable",))
+        private_event = CaseEvent.objects.create(
+            case=self.case,
+            action="Registry review in progress",
+            actor=self.registry,
+            is_public=False,
+        )
+
+        stakeholder_response = self.authenticated_client(self.lawyer).get(
+            "/api/cases/track/",
+            {"case_number": self.case.case_number},
+        )
+        other_user_response = self.authenticated_client(self.other_lawyer).get(
+            "/api/cases/track/",
+            {"case_number": self.case.case_number},
+        )
+
+        self.assertEqual(stakeholder_response.status_code, 200)
+        self.assertIn(
+            "Registry review in progress",
+            [event["action"] for event in stakeholder_response.data["public_timeline"]],
+        )
+        self.assertEqual(other_user_response.status_code, 404)
+
     def test_lawyers_only_list_cases_they_are_party_to(self):
         other_case = CourtCase.objects.create(
             case_number="HC/124/2026",
@@ -192,17 +236,26 @@ class CaseApiTests(TestCase):
     def test_filing_creates_receipt_and_encrypted_immutable_document(self):
         original = b"%PDF-1.7\nsample legal filing\n%%EOF"
         upload = SimpleUploadedFile("claim.pdf", original, content_type="application/pdf")
+        payment_proof = SimpleUploadedFile(
+            "payment-proof.pdf",
+            b"%PDF-1.7\npayment receipt\n%%EOF",
+            content_type="application/pdf",
+        )
         client = self.authenticated_client(self.lawyer)
 
         response = client.post(
             "/api/filings/",
             {
                 "court": CourtCase.Court.HIGH_COURT,
+                "court_division": "General List",
                 "title": "Applicant v Respondent",
                 "case_type": "Civil Matter",
                 "document_type": "Statement of Claim",
                 "parties": '["Applicant", "Respondent"]',
                 "document": upload,
+                "fee_amount": "167.00",
+                "payment_reference": "BANK-REF-001",
+                "payment_proof": payment_proof,
             },
             format="multipart",
         )
@@ -218,6 +271,62 @@ class CaseApiTests(TestCase):
         self.assertEqual(decrypt_document(encrypted), original)
         self.assertEqual(document.sha256_digest, sha256(original).hexdigest())
         self.assertEqual(response.data["case_number"], document.case.case_number)
+        filing = Filing.objects.get(receipt_number=response.data["receipt_number"])
+        self.assertEqual(filing.fee_amount, 167)
+        self.assertEqual(filing.payment_reference, "BANK-REF-001")
+        self.assertEqual(filing.payment_status, Filing.PaymentStatus.PENDING_REVIEW)
+        self.assertEqual(response.data["payment_status"], Filing.PaymentStatus.PENDING_REVIEW)
+        self.assertEqual(response.data["court_division"], "General List")
+        self.assertEqual(response.data["fee_amount"], "167.00")
+        proof_document = filing.payment_proof
+        with proof_document.file.open("rb") as saved_file:
+            encrypted_proof = saved_file.read()
+        self.assertEqual(
+            decrypt_document(encrypted_proof),
+            b"%PDF-1.7\npayment receipt\n%%EOF",
+        )
+
+        registry_client = self.authenticated_client(self.registry)
+        blocked_registration = registry_client.post(
+            f"/api/cases/{receipt_case.pk}/status/",
+            {"status": CourtCase.Status.REGISTERED},
+            format="json",
+        )
+        self.assertEqual(blocked_registration.status_code, 400)
+        denied_verification = client.post(
+            f"/api/cases/{receipt_case.pk}/payment-review/",
+            {},
+            format="json",
+        )
+        self.assertEqual(denied_verification.status_code, 403)
+
+        verification = registry_client.post(
+            f"/api/cases/{receipt_case.pk}/payment-review/",
+            {},
+            format="json",
+        )
+        self.assertEqual(verification.status_code, 200, verification.data)
+        filing.refresh_from_db()
+        self.assertEqual(filing.payment_status, Filing.PaymentStatus.VERIFIED)
+        self.assertEqual(filing.payment_reviewed_by, self.registry)
+        receipt_case.assigned_officer = self.officer
+        receipt_case.save(update_fields=("assigned_officer",))
+        judge_registration = self.authenticated_client(self.officer).post(
+            f"/api/cases/{receipt_case.pk}/status/",
+            {"status": CourtCase.Status.REGISTERED},
+            format="json",
+        )
+        self.assertEqual(judge_registration.status_code, 403)
+        receipt_case.assigned_officer = None
+        receipt_case.save(update_fields=("assigned_officer",))
+
+        registered = registry_client.post(
+            f"/api/cases/{receipt_case.pk}/status/",
+            {"status": CourtCase.Status.REGISTERED},
+            format="json",
+        )
+        self.assertEqual(registered.status_code, 200, registered.data)
+        self.assertEqual(registered.data["status"], CourtCase.Status.REGISTERED)
 
     def test_only_case_participant_can_download_document(self):
         document = CaseDocument(
@@ -261,6 +370,14 @@ class CaseApiTests(TestCase):
         self.assertEqual(registry_response.data["status"], CourtCase.Status.ASSIGNED)
 
     def test_registry_status_change_is_audited_and_notifies_case_owner(self):
+        Filing.objects.create(
+            case=self.case,
+            submitted_by=self.lawyer,
+            fee_amount="167.00",
+            payment_reference="TEST-REF",
+            payment_status=Filing.PaymentStatus.VERIFIED,
+            payment_reviewed_by=self.registry,
+        )
         response = self.authenticated_client(self.registry).post(
             f"/api/cases/{self.case.pk}/status/",
             {"status": CourtCase.Status.REGISTERED},

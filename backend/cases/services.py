@@ -114,19 +114,37 @@ def _next_case_number(court):
 
 
 @transaction.atomic
-def submit_filing(*, user, court, title, case_type, parties, document_type, upload):
+def submit_filing(
+    *,
+    user,
+    court,
+    court_division,
+    title,
+    case_type,
+    parties,
+    document_type,
+    upload,
+    fee_amount,
+    payment_reference,
+    payment_proof,
+):
     original_bytes = upload.read()
     upload.seek(0)
     if not original_bytes.startswith(b"%PDF-"):
         raise ValueError("The uploaded file is not a valid PDF document.")
     if len(original_bytes) > settings.DOCUMENT_MAX_UPLOAD_BYTES:
         raise ValueError("The uploaded PDF exceeds the 10 MB limit.")
+    proof_bytes = payment_proof.read()
+    payment_proof.seek(0)
+    if len(proof_bytes) > settings.DOCUMENT_MAX_UPLOAD_BYTES:
+        raise ValueError("The payment proof exceeds the 10 MB limit.")
 
     case = CourtCase.objects.create(
         case_number=_next_case_number(court),
         title=title,
         case_type=case_type,
         court=court,
+        court_division=court_division,
         practitioner=user,
     )
     for party_name in parties:
@@ -136,6 +154,8 @@ def submit_filing(*, user, court, title, case_type, parties, document_type, uplo
         case=case,
         receipt_number=f"EJ-{timezone.localdate():%Y}-{get_random_string(12).upper()}",
         submitted_by=user,
+        fee_amount=fee_amount,
+        payment_reference=payment_reference,
     )
     filename = upload.name.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
     document = CaseDocument(
@@ -149,6 +169,24 @@ def submit_filing(*, user, court, title, case_type, parties, document_type, uplo
     )
     document.file.save(filename, ContentFile(encrypt_document(original_bytes)), save=False)
     document.save()
+    proof_filename = payment_proof.name.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+    proof_document = CaseDocument(
+        case=case,
+        filing=filing,
+        document_type="Filing fee payment proof",
+        original_filename=proof_filename,
+        sha256_digest=hashlib.sha256(proof_bytes).hexdigest(),
+        size_bytes=len(proof_bytes),
+        uploaded_by=user,
+    )
+    proof_document.file.save(
+        proof_filename,
+        ContentFile(encrypt_document(proof_bytes)),
+        save=False,
+    )
+    proof_document.save()
+    filing.payment_proof = proof_document
+    filing.save(update_fields=("payment_proof",))
     CaseEvent.objects.create(
         case=case,
         action="Electronic filing submitted",
@@ -158,8 +196,44 @@ def submit_filing(*, user, court, title, case_type, parties, document_type, uplo
     create_notification(
         user,
         "Filing submitted",
-        f"Your filing for {case.case_number} was submitted. Receipt: {filing.receipt_number}.",
+        (
+            f"Your filing for {case.case_number} was submitted. "
+            f"Payment proof is pending Registry review. Receipt: {filing.receipt_number}."
+        ),
         case,
+    )
+    return filing
+
+
+def verify_filing_payment(*, case, reviewer):
+    filing = case.filings.order_by("submitted_at").first()
+    if filing is None:
+        raise ValueError("This case has no filing payment to review.")
+    if filing.payment_status == Filing.PaymentStatus.VERIFIED:
+        raise ValueError("This filing payment has already been verified.")
+    if filing.payment_proof_id is None:
+        raise ValueError("This filing has no payment proof attached.")
+
+    filing.payment_status = Filing.PaymentStatus.VERIFIED
+    filing.payment_reviewed_by = reviewer
+    filing.payment_reviewed_at = timezone.now()
+    filing.save(
+        update_fields=(
+            "payment_status",
+            "payment_reviewed_by",
+            "payment_reviewed_at",
+        )
+    )
+    CaseEvent.objects.create(
+        case=case,
+        action="Filing fee payment proof verified by Registry",
+        actor=reviewer,
+        is_public=case.is_publicly_trackable,
+    )
+    notify_case_users(
+        case,
+        "Filing payment verified",
+        f"The filing payment for {case.case_number} has been verified by Registry.",
     )
     return filing
 

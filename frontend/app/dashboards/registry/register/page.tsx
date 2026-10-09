@@ -17,6 +17,7 @@ export default function RegistryCaseRegistrationPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [registeringCaseId, setRegisteringCaseId] = useState<number | null>(null);
+  const [reviewingPaymentCaseId, setReviewingPaymentCaseId] = useState<number | null>(null);
   const [attempt, setAttempt] = useState(0);
 
   const loadIncomingCases = useCallback(async (signal: AbortSignal) => {
@@ -75,6 +76,31 @@ export default function RegistryCaseRegistrationPage() {
       setError(registerError instanceof Error ? registerError.message : "Could not register this case.");
     } finally {
       setRegisteringCaseId(null);
+    }
+  }
+
+  async function verifyPayment(caseId: number, caseNumber: string) {
+    const token = getSessionToken();
+    if (!token) {
+      setError("Your session has expired. Please sign in again.");
+      return;
+    }
+
+    setReviewingPaymentCaseId(caseId);
+    setError(null);
+    setNotice(null);
+    try {
+      await apiRequest(`cases/${caseId}/payment-review/`, { method: "POST" }, token);
+      setCases((current) =>
+        current.map((item) =>
+          item.id === caseId ? { ...item, payment_status: "verified" } : item,
+        ),
+      );
+      setNotice(`Payment proof for ${caseNumber} has been verified.`);
+    } catch (reviewError) {
+      setError(reviewError instanceof Error ? reviewError.message : "Could not verify payment.");
+    } finally {
+      setReviewingPaymentCaseId(null);
     }
   }
 
@@ -140,18 +166,33 @@ export default function RegistryCaseRegistrationPage() {
                       <p className="font-semibold text-slate-900">{caseRecord.case_number}</p>
                       <p className="mt-1 truncate text-sm text-slate-700">{caseRecord.title}</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        {caseRecord.court} · {caseRecord.case_type} · Filed {formatDate(caseRecord.filing_date)}
+                        {caseRecord.court} · {caseRecord.court_division} · {caseRecord.case_type} · Filed {formatDate(caseRecord.filing_date)}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Fee submitted: {caseRecord.filing_fee_amount ? `ZMW ${Number(caseRecord.filing_fee_amount).toFixed(2)}` : "Not provided"}
+                        {caseRecord.payment_reference ? ` · Ref ${caseRecord.payment_reference}` : ""}
+                        {caseRecord.payment_status ? ` · ${caseRecord.payment_status === "verified" ? "Payment verified" : "Awaiting payment review"}` : ""}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
                       <Link href={`/cases/${caseRecord.id}`} className="text-sm font-semibold text-emerald-700 hover:text-emerald-900">
-                        Review details
+                        Review case &amp; proof
                       </Link>
+                      {caseRecord.payment_status === "pending_review" && (
+                        <button
+                          type="button"
+                          onClick={() => void verifyPayment(caseRecord.id, caseRecord.case_number)}
+                          disabled={registeringCaseId !== null || reviewingPaymentCaseId !== null}
+                          className="min-h-10 rounded-lg border border-emerald-700 px-4 text-sm font-semibold text-emerald-800 hover:bg-emerald-50 disabled:cursor-wait disabled:opacity-60"
+                        >
+                          {reviewingPaymentCaseId === caseRecord.id ? "Verifying…" : "Verify payment"}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => void registerCase(caseRecord.id, caseRecord.case_number)}
-                        disabled={registeringCaseId !== null}
-                        className="min-h-10 rounded-lg bg-[#173b30] px-4 text-sm font-semibold text-white hover:bg-[#0f2d23] disabled:cursor-wait disabled:opacity-60"
+                        disabled={registeringCaseId !== null || reviewingPaymentCaseId !== null || caseRecord.payment_status !== "verified"}
+                        className="min-h-10 rounded-lg bg-[#173b30] px-4 text-sm font-semibold text-white hover:bg-[#0f2d23] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {registeringCaseId === caseRecord.id ? "Registering…" : "Register case"}
                       </button>

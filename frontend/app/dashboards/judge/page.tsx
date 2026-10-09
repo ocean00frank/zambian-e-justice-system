@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { HearingCountdown } from "@/components/hearing-countdown";
 import { formatDate, roleLabelByRole } from "@/components/api";
 import { useRoleDashboard } from "@/components/use-role-dashboard";
 
@@ -10,7 +11,6 @@ export default function JudgeDashboardPage() {
   const metrics = [
     { label: "Assigned cases", value: data?.summary.active_cases },
     { label: "Upcoming hearings", value: data?.summary.upcoming_hearings },
-    { label: "Unread notifications", value: data?.summary.unread_notifications },
   ];
   const userName = data?.user.full_name || data?.user.username || "Account";
 
@@ -48,7 +48,7 @@ export default function JudgeDashboardPage() {
           </section>
         )}
 
-        <section aria-label="Work summary" className="grid gap-4 sm:grid-cols-3">
+        <section aria-label="Work summary" className="grid gap-4 sm:grid-cols-2">
           {metrics.map((metric) => (
             <article key={metric.label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-medium text-slate-600">{metric.label}</p>
@@ -80,7 +80,9 @@ export default function JudgeDashboardPage() {
                 ))}
               </div>
             ) : error ? null : (
-              <p className="px-5 py-8 text-center text-sm text-slate-500">No cases are currently assigned to you.</p>
+              <p className="px-5 py-8 text-center text-sm text-slate-500">
+                The Court Registry has not assigned any cases to you yet. New assignments will appear here automatically.
+              </p>
             )}
           </section>
 
@@ -103,6 +105,11 @@ export default function JudgeDashboardPage() {
                       {formatDate(hearing.hearing_date)} · {hearing.hearing_time}
                       {hearing.courtroom ? ` · ${hearing.courtroom}` : ""}
                     </p>
+                    <HearingCountdown
+                      date={hearing.hearing_date}
+                      time={hearing.hearing_time}
+                      className="mt-1 text-xs font-medium text-emerald-700"
+                    />
                   </article>
                 ))}
               </div>

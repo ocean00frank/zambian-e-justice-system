@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { HearingCountdown } from "@/components/hearing-countdown";
 import { formatDate, roleLabelByRole } from "@/components/api";
 import { useRoleDashboard } from "@/components/use-role-dashboard";
 
@@ -11,7 +12,6 @@ export default function RegistryDashboardPage() {
     { label: "Incoming filings", value: data?.summary.incoming_filings },
     { label: "Active case records", value: data?.summary.active_cases },
     { label: "Upcoming hearings", value: data?.summary.upcoming_hearings },
-    { label: "Unread notifications", value: data?.summary.unread_notifications },
   ];
   const userName = data?.user.full_name || data?.user.username || "Account";
   const incomingCases = data?.cases.filter((item) => item.status === "Filed") ?? [];
@@ -51,7 +51,7 @@ export default function RegistryDashboardPage() {
           </section>
         )}
 
-        <section aria-label="Registry summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section aria-label="Registry summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {metrics.map((metric) => (
             <article key={metric.label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-medium text-slate-600">{metric.label}</p>
@@ -110,6 +110,11 @@ export default function RegistryDashboardPage() {
                       {formatDate(hearing.hearing_date)} · {hearing.hearing_time}
                       {hearing.courtroom ? ` · ${hearing.courtroom}` : ""}
                     </p>
+                    <HearingCountdown
+                      date={hearing.hearing_date}
+                      time={hearing.hearing_time}
+                      className="mt-1 text-xs font-medium text-emerald-700"
+                    />
                   </article>
                 ))}
               </div>

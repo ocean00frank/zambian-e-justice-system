@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import mimetypes
 from hmac import compare_digest
 from io import BytesIO
 
@@ -8,8 +9,9 @@ from django.http import FileResponse, Http404
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import generics, mixins, status, viewsets
+from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.generics import GenericAPIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -39,6 +41,7 @@ from .services import (
     assign_case,
     create_notification,
     update_case_status,
+    verify_filing_payment,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,7 +53,7 @@ class CaseViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
         queryset = accessible_cases(self.request.user).select_related(
             "practitioner",
             "assigned_officer",
-        ).prefetch_related("parties", "documents", "hearings", "events")
+        ).prefetch_related("parties", "documents", "hearings", "events", "filings")
         search = self.request.query_params.get("search", "").strip()
         if search:
             queryset = queryset.filter(
@@ -85,11 +88,36 @@ class CaseViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
         case = self.get_object()
         serializer = CaseStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        if serializer.validated_data["status"] == CourtCase.Status.REGISTERED:
+            if not (
+                request.user.is_superuser
+                or request.user.role == User.Role.REGISTRY
+            ):
+                raise PermissionDenied("Only Registry staff may register a case.")
+            filing = case.filings.order_by("submitted_at").first()
+            if filing is None or filing.payment_status != Filing.PaymentStatus.VERIFIED:
+                raise ValidationError(
+                    {"status": "Registry must verify the filing payment before registering this case."}
+                )
         case = update_case_status(
             case=case,
             status=serializer.validated_data["status"],
             actor=request.user,
         )
+        return Response(CaseDetailSerializer(case, context=self.get_serializer_context()).data)
+
+    @action(
+        detail=True,
+        methods=("post",),
+        permission_classes=(IsRegistry,),
+        url_path="payment-review",
+    )
+    def review_payment(self, request, pk=None):
+        case = self.get_object()
+        try:
+            verify_filing_payment(case=case, reviewer=request.user)
+        except ValueError as exc:
+            raise ValidationError({"payment": str(exc)}) from exc
         return Response(CaseDetailSerializer(case, context=self.get_serializer_context()).data)
 
     @action(
@@ -142,7 +170,7 @@ class CaseViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Gen
 
 class PublicCaseTrackView(APIView):
     permission_classes = [AllowAny]
-    authentication_classes = []
+    authentication_classes = [TokenAuthentication]
 
     def get(self, request):
         case_number = request.query_params.get("case_number", "").strip()
@@ -151,17 +179,23 @@ class PublicCaseTrackView(APIView):
                 {"case_number": ["This query parameter is required."]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        case = (
-            CourtCase.objects.filter(
-                case_number__iexact=case_number,
-                is_publicly_trackable=True,
-            )
-            .prefetch_related("events", "hearings")
-            .first()
-        )
+        case = CourtCase.objects.filter(
+            case_number__iexact=case_number,
+        ).prefetch_related("events", "hearings").first()
         if case is None:
             raise Http404("No publicly trackable case was found.")
-        return Response(PublicCaseSerializer(case).data)
+        can_view_private_updates = (
+            request.user.is_authenticated
+            and accessible_cases(request.user).filter(pk=case.pk).exists()
+        )
+        if not case.is_publicly_trackable and not can_view_private_updates:
+            raise Http404("No publicly trackable case was found.")
+        return Response(
+            PublicCaseSerializer(
+                case,
+                context={"request": request, "can_view_private_updates": can_view_private_updates},
+            ).data
+        )
 
 
 class FilingCreateView(GenericAPIView):
@@ -241,11 +275,12 @@ class DocumentDownloadView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+        content_type, _ = mimetypes.guess_type(document.original_filename)
         response = FileResponse(
             BytesIO(plaintext),
             as_attachment=True,
             filename=document.original_filename,
-            content_type="application/pdf",
+            content_type=content_type or "application/octet-stream",
         )
         response["Cache-Control"] = "private, no-store"
         response["X-Content-Type-Options"] = "nosniff"
@@ -359,6 +394,7 @@ class JudicialOfficerListView(APIView):
                 {
                     "id": officer.pk,
                     "full_name": officer.get_full_name() or officer.username,
+                    "username": officer.username,
                 }
                 for officer in officers
             ]

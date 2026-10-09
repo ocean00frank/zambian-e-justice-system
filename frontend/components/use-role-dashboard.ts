@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   ApiCase,
   ApiHearing,
-  ApiNotification,
   ApiUser,
   DashboardSummary,
   PaginatedResponse,
@@ -20,7 +19,6 @@ export type RoleDashboardData = {
   summary: DashboardSummary;
   cases: ApiCase[];
   hearings: ApiHearing[];
-  notifications: ApiNotification[];
 };
 
 export function useRoleDashboard(requiredRole: UserRole) {
@@ -46,7 +44,7 @@ export function useRoleDashboard(requiredRole: UserRole) {
         return;
       }
 
-      const [summary, cases, hearings, notifications] = await Promise.all([
+      const [summary, cases, hearings] = await Promise.all([
         apiRequest<DashboardSummary>("dashboard/summary/", { signal }, token),
         apiRequest<PaginatedResponse<ApiCase>>(
           requiredRole === "registry" ? "cases/?status=Filed" : "cases/",
@@ -54,7 +52,6 @@ export function useRoleDashboard(requiredRole: UserRole) {
           token,
         ),
         apiRequest<PaginatedResponse<ApiHearing>>("hearings/?upcoming=true", { signal }, token),
-        apiRequest<PaginatedResponse<ApiNotification>>("notifications/", { signal }, token),
       ]);
 
       setData({
@@ -62,7 +59,6 @@ export function useRoleDashboard(requiredRole: UserRole) {
         summary,
         cases: cases.results,
         hearings: hearings.results,
-        notifications: notifications.results,
       });
       setError(null);
     } catch (requestError) {

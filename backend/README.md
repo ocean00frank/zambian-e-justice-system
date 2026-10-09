@@ -52,9 +52,10 @@ Authorization: Token <token>
 | GET | `/api/cases/` | Authenticated, role-filtered; `search`, `status`, and `filing_date` filters |
 | GET | `/api/cases/{id}/` | Authenticated, role-filtered |
 | POST | `/api/cases/{id}/status/` | Judge or Registry |
+| POST | `/api/cases/{id}/payment-review/` | Registry; verifies submitted fee evidence |
 | POST | `/api/cases/{id}/assign/` | Registry |
 | POST | `/api/cases/{id}/parties/{party_id}/link-account/` | Registry; link a provisioned Litigant account |
-| GET | `/api/cases/track/?case_number=...` | Public, only explicitly public-trackable cases |
+| GET | `/api/cases/track/?case_number=...` | Public for explicitly public-trackable cases; authenticated case stakeholders can also track their own cases |
 | POST | `/api/filings/` | Lawyer; multipart PDF |
 | GET | `/api/filings/receipts/{receipt_number}/` | Authenticated case participant or court role |
 | GET | `/api/documents/` | Authenticated, role-filtered |
@@ -65,12 +66,26 @@ Authorization: Token <token>
 | GET | `/api/dashboard/summary/` | Authenticated, role-filtered counts |
 | GET | `/api/judicial-officers/` | Registry only; active judges available for case assignment |
 
-An e-filing sends `court`, `title`, `case_type`, `document_type`, `parties` (JSON
-array), and `document` as multipart fields. Only PDF files up to 10 MB are
-accepted. Each submission creates a case number and timestamped receipt.
+An e-filing sends `court`, `court_division`, `title`, `case_type`,
+`document_type`, `parties` (JSON array), `document`, `fee_amount`,
+`payment_reference`, and `payment_proof` as multipart fields. The filing
+document must be a PDF; payment proof may be a PDF, JPG, or PNG. Each file is
+limited to 10 MB. Each submission creates a case number and timestamped
+receipt. Fee amounts are entered by the Lawyer and are not calculated by the
+system because fees vary by court/division and filing process. Registry must
+review the proof before the case can be marked Registered. The submission
+receipt is not a court acceptance or a confirmation that the amount is correct.
 Documents are stored encrypted using AES-256-GCM; downloads require case access
 and pass an authenticated integrity check. Case documents and audit events
 cannot be edited or deleted through the API or Django admin.
+
+Case tracking returns only the case number, court, case type, filing date,
+status, next scheduled hearing, and progress timeline. Public visitors can see
+only cases explicitly enabled for public tracking. Authenticated lawyers,
+litigants, judges, and Registry users can track private cases only when the
+case is within their existing role-based access. The tracking page refreshes
+progress every 15 seconds while visible and on returning to the page; it does
+not expose filing documents, parties, or payment evidence.
 
 In-app notifications are always recorded. Email delivery is enabled when SMTP
 settings are supplied. SMS delivery requires an SMS provider and is not enabled

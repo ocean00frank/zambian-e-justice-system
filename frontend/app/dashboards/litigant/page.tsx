@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { HearingCountdown } from "@/components/hearing-countdown";
 import { formatDate, roleLabelByRole } from "@/components/api";
 import { useRoleDashboard } from "@/components/use-role-dashboard";
 
@@ -47,7 +48,6 @@ export default function LitigantDashboardPage() {
           {[
             { label: "Active cases", value: data?.summary.active_cases },
             { label: "Upcoming hearings", value: data?.summary.upcoming_hearings },
-            { label: "Unread notifications", value: data?.summary.unread_notifications },
           ].map((metric) => (
             <article key={metric.label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-medium text-slate-600">{metric.label}</p>
@@ -81,6 +81,13 @@ export default function LitigantDashboardPage() {
                     <p className="mt-1 text-xs text-slate-500">
                       Next hearing: {item.next_hearing ? formatDate(item.next_hearing.date) : "Not scheduled"}
                     </p>
+                    {item.next_hearing && (
+                      <HearingCountdown
+                        date={item.next_hearing.date}
+                        time={item.next_hearing.time}
+                        className="mt-1 text-xs font-medium text-emerald-700"
+                      />
+                    )}
                   </div>
                 </article>
               ))}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { HearingCountdown } from "@/components/hearing-countdown";
 import {
   API_BASE_URL,
   ApiCaseDetail,
@@ -54,6 +55,7 @@ export default function CaseDetailsPage() {
       ]);
       setCaseData(result);
       setStatus(result.status);
+      setOfficerId(result.assigned_officer ? String(result.assigned_officer) : "");
       setUser(currentUser);
       setError(null);
       if (currentUser.role === "registry") {
@@ -178,7 +180,16 @@ export default function CaseDetailsPage() {
                   <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Court</dt><dd className="mt-2 font-medium text-slate-800">{caseData.court}</dd></div>
                   <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Case type</dt><dd className="mt-2 font-medium text-slate-800">{caseData.case_type}</dd></div>
                   <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Filing date</dt><dd className="mt-2 font-medium text-slate-800">{formatDate(caseData.filing_date)}</dd></div>
-                  <div><dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Assigned judge</dt><dd className="mt-2 font-medium text-slate-800">{caseData.assigned_officer_name || "Not assigned"}</dd></div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-[0.15em] text-slate-500">Assigned judge</dt>
+                    <dd className="mt-2 font-medium text-slate-800">
+                      {caseData.assigned_officer
+                        ? caseData.assigned_officer_username
+                          ? `Username: ${caseData.assigned_officer_username}`
+                          : caseData.assigned_officer_name || `Judge account ${caseData.assigned_officer}`
+                        : "Not assigned"}
+                    </dd>
+                  </div>
                 </dl>
                 <div className="mt-6">
                   <h2 className="text-sm font-semibold text-slate-800">Parties</h2>
@@ -214,6 +225,13 @@ export default function CaseDetailsPage() {
                         <li key={hearing.id} className="border-b border-slate-100 pb-3 last:border-0">
                           <p className="text-sm font-medium text-slate-800">{hearing.purpose}</p>
                           <p className="mt-1 text-xs text-slate-500">{formatDate(hearing.hearing_date)} · {hearing.hearing_time} · {hearing.courtroom || "Courtroom not specified"}</p>
+                          {hearing.status === "Scheduled" && (
+                            <HearingCountdown
+                              date={hearing.hearing_date}
+                              time={hearing.hearing_time}
+                              className="mt-1 text-xs font-medium text-emerald-700"
+                            />
+                          )}
                           <p className="text-xs text-slate-500">{hearing.status}</p>
                         </li>
                       ))}
@@ -252,10 +270,25 @@ export default function CaseDetailsPage() {
                   {mayAssign && (
                     <form onSubmit={assignCase} className="space-y-3 border border-slate-200 bg-white p-5">
                       <h2 className="font-semibold text-slate-900">Assign judge</h2>
+                      {caseData.assigned_officer && (
+                        <p className="text-sm text-slate-600">
+                          Currently assigned to{" "}
+                          {caseData.assigned_officer_username
+                            ? `@${caseData.assigned_officer_username}`
+                            : caseData.assigned_officer_name || `Judge account ${caseData.assigned_officer}`}
+                          .
+                        </p>
+                      )}
                       <label htmlFor="judge" className="sr-only">Select judge</label>
                       <select id="judge" value={officerId} onChange={(event) => setOfficerId(event.target.value)} required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                         <option value="">Select a judge</option>
-                        {officers.map((officer) => <option key={officer.id} value={officer.id}>{officer.full_name}</option>)}
+                        {officers.map((officer) => (
+                          <option key={officer.id} value={officer.id}>
+                            {officer.full_name === officer.username
+                              ? `@${officer.username}`
+                              : `${officer.full_name} (@${officer.username})`}
+                          </option>
+                        ))}
                       </select>
                       <button className="rounded-lg bg-[#173b30] px-4 py-2 text-sm font-semibold text-white">Assign case</button>
                     </form>

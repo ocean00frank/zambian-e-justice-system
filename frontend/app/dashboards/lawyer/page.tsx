@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { HearingCountdown } from "@/components/hearing-countdown";
 import { formatDate, roleLabelByRole } from "@/components/api";
 import { useRoleDashboard } from "@/components/use-role-dashboard";
 
@@ -12,7 +13,6 @@ export default function LawyerDashboard() {
     { label: "Active cases", value: data?.summary.active_cases },
     { label: "Pending filings", value: data?.summary.pending_filings },
     { label: "Upcoming hearings", value: data?.summary.upcoming_hearings },
-    { label: "Unread notifications", value: data?.summary.unread_notifications },
   ];
   const userName = data?.user.full_name || data?.user.username || "Account";
 
@@ -59,7 +59,7 @@ export default function LawyerDashboard() {
           </section>
         )}
 
-        <section aria-label="Casework summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section aria-label="Casework summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {metrics.map((metric) => (
             <article key={metric.label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-medium text-slate-600">{metric.label}</p>
@@ -93,6 +93,13 @@ export default function LawyerDashboard() {
                     <p className="mt-1 text-xs text-slate-500">
                       Hearing: {item.next_hearing ? formatDate(item.next_hearing.date) : "Not scheduled"}
                     </p>
+                    {item.next_hearing && (
+                      <HearingCountdown
+                        date={item.next_hearing.date}
+                        time={item.next_hearing.time}
+                        className="mt-1 text-xs font-medium text-emerald-700"
+                      />
+                    )}
                   </div>
                 </article>
               ))}
@@ -105,29 +112,6 @@ export default function LawyerDashboard() {
           )}
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="font-semibold text-slate-900">Notifications</h2>
-            <p className="mt-1 text-sm text-slate-500">Updates for your account</p>
-          </div>
-          {loading ? (
-            <p className="px-5 py-8 text-sm text-slate-500">Loading notifications…</p>
-          ) : data?.notifications.length ? (
-            <div className="divide-y divide-slate-100">
-              {data.notifications.slice(0, 4).map((notification) => (
-                <article key={notification.id} className="flex gap-3 px-5 py-4">
-                  <span aria-hidden="true" className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notification.is_read ? "bg-slate-300" : "bg-emerald-600"}`} />
-                  <div className="min-w-0">
-                    <p className="font-medium text-slate-900">{notification.title}</p>
-                    <p className="mt-1 text-sm text-slate-600">{notification.message}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : error ? null : (
-            <p className="px-5 py-8 text-center text-sm text-slate-500">No notifications yet.</p>
-          )}
-        </section>
       </div>
     </DashboardShell>
   );

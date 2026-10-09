@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { HearingCountdown } from "@/components/hearing-countdown";
 import { ApiHearing, PaginatedResponse, apiRequest, formatDate, getSessionToken } from "@/components/api";
 import { LawyerPageShell } from "@/components/lawyer-page-shell";
 
@@ -78,6 +79,11 @@ export default function CauseListPage() {
                           <div className="text-right text-sm text-slate-600">
                             <p>{entry.hearing_time}</p>
                             <p>{entry.courtroom || "Courtroom not specified"}</p>
+                            <HearingCountdown
+                              date={entry.hearing_date}
+                              time={entry.hearing_time}
+                              className="mt-1 font-medium text-emerald-700"
+                            />
                           </div>
                         </li>
                       ))}

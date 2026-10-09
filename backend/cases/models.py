@@ -36,6 +36,7 @@ class CourtCase(models.Model):
     title = models.CharField(max_length=255)
     case_type = models.CharField(max_length=120)
     court = models.CharField(max_length=32, choices=Court.choices)
+    court_division = models.CharField(max_length=100, blank=True)
     filing_date = models.DateField(auto_now_add=True)
     status = models.CharField(max_length=32, choices=Status.choices, default=Status.FILED)
     practitioner = models.ForeignKey(
@@ -77,6 +78,10 @@ class CaseParty(models.Model):
 
 
 class Filing(models.Model):
+    class PaymentStatus(models.TextChoices):
+        PENDING_REVIEW = "pending_review", "Pending review"
+        VERIFIED = "verified", "Verified"
+
     case = models.ForeignKey(CourtCase, on_delete=models.PROTECT, related_name="filings")
     receipt_number = models.CharField(max_length=40, unique=True, default=uuid.uuid4)
     submitted_by = models.ForeignKey(
@@ -84,6 +89,28 @@ class Filing(models.Model):
         on_delete=models.PROTECT,
         related_name="filings",
     )
+    fee_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    payment_reference = models.CharField(max_length=120, blank=True)
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING_REVIEW,
+    )
+    payment_proof = models.ForeignKey(
+        "CaseDocument",
+        on_delete=models.PROTECT,
+        related_name="payment_proofs",
+        null=True,
+        blank=True,
+    )
+    payment_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="reviewed_filing_payments",
+        null=True,
+        blank=True,
+    )
+    payment_reviewed_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
